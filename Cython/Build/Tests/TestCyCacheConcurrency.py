@@ -3,6 +3,7 @@ import gzip
 import multiprocessing
 import os
 from pathlib import Path
+import stat
 import tempfile
 import threading
 import unittest
@@ -25,13 +26,13 @@ def store_entry(cache_dir, source, header=None):
 
 
 def publish_entries(cache_dir, source, header, start=None):
-    mkstemp = tempfile.mkstemp
+    os_open = os.open
     threaded = start is None
     if threaded:
         start = threading.Barrier(2)
 
     def overlapping_temporary(*args, **kwargs):
-        fd, path = mkstemp(*args, **kwargs)
+        fd = os_open(*args, **kwargs)
         try:
             start.wait(STARTUP_TIMEOUT)
             # Neither writer may publish before both have distinct temporary files.
@@ -41,9 +42,9 @@ def publish_entries(cache_dir, source, header, start=None):
         except BaseException:
             os.close(fd)
             raise
-        return fd, path
+        return fd
 
-    with mock.patch.object(cache_mod.tempfile, 'mkstemp', overlapping_temporary):
+    with mock.patch.object(cache_mod.os, 'open', overlapping_temporary):
         if threaded:
             with ThreadPoolExecutor(max_workers=2) as pool:
                 futures = [pool.submit(store_entry, cache_dir, source, header) for _ in range(2)]
@@ -51,6 +52,11 @@ def publish_entries(cache_dir, source, header, start=None):
                     future.result(OPERATION_TIMEOUT)
         else:
             store_entry(cache_dir, source, header)
+
+
+def publish_with_group_permissions(cache_dir, source, header):
+    os.umask(0o002)
+    store_entry(cache_dir, source, header)
 
 
 class TestCyCacheConcurrency(unittest.TestCase):
@@ -66,8 +72,8 @@ class TestCyCacheConcurrency(unittest.TestCase):
         self.cache = cache_mod.Cache(str(self.cache_dir))
         self.context = multiprocessing.get_context('spawn')
 
-    def start_process(self, *args):
-        process = self.context.Process(target=publish_entries, args=args)
+    def start_process(self, *args, target=publish_entries):
+        process = self.context.Process(target=target, args=args)
         process.start()
 
         def stop():
@@ -78,6 +84,21 @@ class TestCyCacheConcurrency(unittest.TestCase):
 
         self.addCleanup(stop)
         return process
+
+    def join_process(self, process):
+        process.join(STARTUP_TIMEOUT)
+        self.assertFalse(process.is_alive(), 'cache writer did not finish')
+        self.assertEqual(process.exitcode, 0)
+
+    def assert_valid_artifact(self, path, zipped):
+        if zipped:
+            with zipfile.ZipFile(path) as archive:
+                self.assertEqual(sorted(archive.namelist()), ['module.c', 'module.h'])
+                for artifact in (self.source, self.header):
+                    self.assertEqual(archive.read(artifact.name), artifact.read_bytes())
+        else:
+            with gzip.open(path, 'rb') as artifact:
+                self.assertEqual(artifact.read(), self.source.read_bytes())
 
     def check_publication(self, threaded):
         for zipped in (False, True):
@@ -90,19 +111,10 @@ class TestCyCacheConcurrency(unittest.TestCase):
                     start = self.context.Barrier(2)
                     processes = [self.start_process(*args, start) for _ in range(2)]
                 for process in processes:
-                    process.join(STARTUP_TIMEOUT)
-                    self.assertFalse(process.is_alive(), 'cache writer did not finish')
-                    self.assertEqual(process.exitcode, 0)
+                    self.join_process(process)
                 cached = self.cache.lookup_cache(str(self.source), 'key')
                 self.assertIsNotNone(cached)
-                if zipped:
-                    with zipfile.ZipFile(cached) as archive:
-                        self.assertEqual(sorted(archive.namelist()), ['module.c', 'module.h'])
-                        for artifact in (self.source, self.header):
-                            self.assertEqual(archive.read(artifact.name), artifact.read_bytes())
-                else:
-                    with gzip.open(cached, 'rb') as artifact:
-                        self.assertEqual(artifact.read(), self.source.read_bytes())
+                self.assert_valid_artifact(cached, zipped)
                 self.assertEqual(list(self.cache_dir.iterdir()), [Path(cached)])
                 Path(cached).unlink()
 
@@ -112,6 +124,44 @@ class TestCyCacheConcurrency(unittest.TestCase):
     def test_concurrent_threads_publish_complete_artifacts(self):
         # A runtime deadlock must not prevent the parent from enforcing a timeout.
         self.check_publication(threaded=True)
+
+    @unittest.skipUnless(os.name == 'posix', 'POSIX file permissions')
+    def test_published_entries_preserve_group_permissions(self):
+        for zipped in (False, True):
+            with self.subTest(zipped=zipped):
+                writer = self.start_process(
+                    str(self.cache_dir), str(self.source), str(self.header) if zipped else None,
+                    target=publish_with_group_permissions)
+                self.join_process(writer)
+                cached = self.cache.lookup_cache(str(self.source), 'key')
+                self.assertEqual(stat.S_IMODE(os.stat(cached).st_mode), 0o664)
+                Path(cached).unlink()
+
+    def test_publishes_complete_artifacts_and_preserves_reused_temporary(self):
+        rename = os.rename
+        reused = []
+        for zipped in (False, True):
+            with self.subTest(zipped=zipped):
+                def publish(temporary, cached):
+                    self.assert_valid_artifact(temporary, zipped)
+                    rename(temporary, cached)
+                    Path(temporary).write_bytes(b'another writer owns this name')
+                    reused.append(Path(temporary))
+
+                with mock.patch.object(cache_mod.os, 'rename', publish):
+                    store_entry(str(self.cache_dir), str(self.source),
+                                str(self.header) if zipped else None)
+                self.assertEqual(reused[-1].read_bytes(), b'another writer owns this name')
+
+    def test_temporary_name_collision_preserves_existing_file(self):
+        occupied = self.cache_dir / 'occupied.tmp'
+        occupied.write_bytes(b'another writer')
+        with mock.patch.object(cache_mod.secrets, 'token_hex', side_effect=['occupied', 'available']):
+            store_entry(str(self.cache_dir), str(self.source))
+        self.assertEqual(occupied.read_bytes(), b'another writer')
+        self.assertFalse((self.cache_dir / 'available.tmp').exists())
+        cached = self.cache.lookup_cache(str(self.source), 'key')
+        self.assert_valid_artifact(cached, zipped=False)
 
     def test_failed_compression_removes_own_temporary(self):
         for zipped in (False, True):

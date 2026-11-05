@@ -3,9 +3,9 @@ import sys
 import os
 import hashlib
 import operator
+import secrets
 import shutil
 import subprocess
-import tempfile
 import zipfile
 
 from ..Utils import cached_function
@@ -173,7 +173,14 @@ class Cache:
         extension = gzip_ext if len(artifacts) == 1 else zip_ext
         fingerprint_file = self.fingerprint_file(c_file, fingerprint, extension)
         # Writers may share a fingerprint, but must not share an unfinished artifact.
-        fd, temporary_file = tempfile.mkstemp(suffix=".tmp", dir=self.path)
+        while True:
+            temporary_file = os.path.join(self.path, secrets.token_hex(8) + ".tmp")
+            try:
+                # Unlike mkstemp's 0600, retain normal umask/default-ACL permissions.
+                fd = os.open(temporary_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
+                break
+            except FileExistsError:
+                pass
         try:
             os.close(fd)
             if len(artifacts) == 1:
@@ -188,14 +195,16 @@ class Cache:
                         zip.write(artifact, os.path.basename(artifact))
             try:
                 os.rename(temporary_file, fingerprint_file)
+                temporary_file = None
             except FileExistsError:
                 # Windows does not replace an entry published by another writer.
                 pass
         finally:
-            try:
-                os.unlink(temporary_file)
-            except OSError:
-                pass
+            if temporary_file is not None:
+                try:
+                    os.unlink(temporary_file)
+                except OSError:
+                    pass
 
     def _list_cache_files(self):
         total_size = 0
