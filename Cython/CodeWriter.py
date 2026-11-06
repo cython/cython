@@ -74,12 +74,12 @@ class DeclarationWriter(TreeVisitor):
         if len(items) > 0:
             for item in items[:-1]:
                 self.visit(item)
-                if output_rhs and item.default is not None:
+                if output_rhs and getattr(item, "default", None) is not None:
                     self.put(" = ")
                     self.visit(item.default)
                 self.put(", ")
             self.visit(items[-1])
-            if output_rhs and items[-1].default is not None:
+            if output_rhs and getattr(items[-1], "default", None) is not None:
                 self.put(" = ")
                 self.visit(items[-1].default)
 
@@ -121,11 +121,37 @@ class DeclarationWriter(TreeVisitor):
         self.put(']')
 
     def visit_CFuncDeclaratorNode(self, node):
-        # TODO: except, gil, etc.
         self.visit(node.base)
         self.put('(')
         self.comma_separated_list(node.args)
-        self.endline(')')
+        self.put(')')
+    
+        if node.has_explicit_exc_clause:
+            if node.exception_value is not None:
+                self.put(" except")
+                if check := node.exception_check:
+                    if isinstance(check, str):
+                        self.put(check)
+                    else:
+                        self.put(" ")
+                else:
+                    self.put(" ")
+                self.visit(node.exception_value)
+            elif check := node.exception_check:
+                if isinstance(check, str):
+                    self.put(" except ")
+                    self.put(check)
+            else:
+                self.put(" noexcept")
+            except_clause = True
+        else:
+            except_clause = False
+
+        if node.nogil:
+            if except_clause:
+                self.put(" with")
+            self.put(" nogil" if not node.with_gil else " gil")
+
 
     def visit_CNameDeclaratorNode(self, node):
         self.put(node.name)
@@ -203,7 +229,11 @@ class DeclarationWriter(TreeVisitor):
         self._visit_container_node(node, "cdef cppclass", extras, node.attributes)
 
     def visit_CEnumDefNode(self, node):
-        self._visit_container_node(node, "cdef enum", None, node.items)
+        if node.create_wrapper:
+            self.put("cpdef")
+        else:
+            self.put("cdef")
+        self._visit_container_node(node, " enum", None, node.items)
 
     def visit_CEnumDefItemNode(self, node):
         self.startline(node.name)
@@ -261,13 +291,10 @@ class DeclarationWriter(TreeVisitor):
             if node.base_type.name is not None:
                 self.put(' ')
 
-        # visit the CFuncDeclaratorNode, but put a `:` at the end of line
-        self.visit(node.declarator.base)
-        self.put('(')
-        self.comma_separated_list(node.declarator.args)
-        self.endline('):')
-
+        self.visit(node.declarator)        
+        self.endline(':')
         self._visit_indented(node.body)
+
 
     def visit_CArgDeclNode(self, node):
         # For "CSimpleBaseTypeNode", the variable type may have been parsed as type.
