@@ -3,8 +3,10 @@ import sys
 import os
 import hashlib
 import operator
+import secrets
 import shutil
 import subprocess
+import time
 import zipfile
 
 from ..Utils import cached_function
@@ -30,6 +32,7 @@ zip_ext = ".zip"
 
 MAX_CACHE_SIZE = 1024 * 1024 * 100
 DEFAULT_DELETE_RATIO = 0.85
+MAX_TEMP_FILE_AGE = 7 * 24 * 60 * 60
 
 join_path = cached_function(os.path.join)
 
@@ -169,27 +172,55 @@ class Cache:
 
     def store_to_cache(self, c_file, fingerprint, compilation_result):
         artifacts = compilation_result.get_generated_source_files()
-        if len(artifacts) == 1:
-            fingerprint_file = self.fingerprint_file(c_file, fingerprint, gzip_ext)
-            with open(c_file, "rb") as f:
-                with gzip_open(fingerprint_file + ".tmp", "wb") as g:
-                    shutil.copyfileobj(f, g)
-        else:
-            fingerprint_file = self.fingerprint_file(c_file, fingerprint, zip_ext)
-            with zipfile.ZipFile(
-                fingerprint_file + ".tmp", "w", zipfile_compression_mode
-            ) as zip:
-                for artifact in artifacts:
-                    zip.write(artifact, os.path.basename(artifact))
-        os.rename(fingerprint_file + ".tmp", fingerprint_file)
+        extension = gzip_ext if len(artifacts) == 1 else zip_ext
+        fingerprint_file = self.fingerprint_file(c_file, fingerprint, extension)
+        # Writers may share a fingerprint, but must not share an unfinished artifact.
+        while True:
+            temporary_file = os.path.join(self.path, secrets.token_hex(8) + ".tmp")
+            try:
+                # Unlike mkstemp's 0600, retain normal umask/default-ACL permissions.
+                fd = os.open(temporary_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
+                break
+            except FileExistsError:
+                pass
+        try:
+            os.close(fd)
+            if len(artifacts) == 1:
+                with open(c_file, "rb") as f:
+                    with gzip_open(temporary_file, "wb") as g:
+                        shutil.copyfileobj(f, g)
+            else:
+                with zipfile.ZipFile(
+                    temporary_file, "w", zipfile_compression_mode
+                ) as zip:
+                    for artifact in artifacts:
+                        zip.write(artifact, os.path.basename(artifact))
+            try:
+                os.rename(temporary_file, fingerprint_file)
+                temporary_file = None
+            except FileExistsError:
+                # Windows does not replace an entry published by another writer.
+                pass
+        finally:
+            if temporary_file is not None:
+                try:
+                    os.unlink(temporary_file)
+                except OSError:
+                    pass
 
     def _list_cache_files(self):
         total_size = 0
         cache_files = []
+        temporary_cutoff = time.time() - MAX_TEMP_FILE_AGE
         with os.scandir(self.path) as entries:
             for entry in entries:
                 if entry.name.endswith('.tmp'):
-                    # Ignore temp files that might still be used by other Cython processes.
+                    # Recent files might still belong to active writers.
+                    try:
+                        if entry.stat(follow_symlinks=False).st_mtime < temporary_cutoff:
+                            os.unlink(entry.path)
+                    except OSError:
+                        pass
                     continue
                 try:
                     stat = entry.stat(follow_symlinks=False)
