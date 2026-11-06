@@ -2,7 +2,7 @@
 
 set -x
 
-GCC_VERSION=${GCC_VERSION:=10}
+GCC_VERSION=${GCC_VERSION:=11}
 PYTHON=${PYTHON:=python}
 
 # Set up compilers
