@@ -249,6 +249,7 @@ _directive_defaults = {
     'warn.unused_arg': False,
     'warn.unused_result': False,
     'warn.multiple_declarators': True,
+    'warn.pep695': True,
     'warn.deprecated.DEF': False,
     'warn.deprecated.IF': True,
     'show_performance_hints': True,
