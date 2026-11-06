@@ -569,8 +569,11 @@ The Cython cache is disabled by default but can be enabled by the ``cache`` para
     )
 
 Concurrent cache writers use unique temporary files and publish only complete
-artifacts. Temporary files left behind by interrupted writers are not reclaimed
-by cache cleanup.
+artifacts. When cleanup scans the cache, it removes temporary files whose last
+modification was more than one week ago. This age-based heuristic preserves
+recent writers' files but can remove a temporary file if its writer has been
+inactive for more than a week. Cleanup may skip the scan while the cache is
+below its size limit.
 
 The cached files are searched in the following paths by default in the following order:
 

@@ -5,6 +5,7 @@ import os
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 import Cython.Build.Dependencies
 import Cython.Compiler.Main
@@ -319,6 +320,43 @@ class TestCyCacheCleanup(unittest.TestCase):
             os.path.exists(regular_file),
             "No files were deleted by cleanup"
         )
+
+    def test_cleanup_removes_temporaries_older_than_one_week(self):
+        now = 2_000_000
+        cutoff = now - 7 * 24 * 60 * 60
+        abandoned = self._create_cache_file('abandoned.tmp', 1000, cutoff - 1)
+        boundary = self._create_cache_file('boundary.tmp', 1000, cutoff)
+        recent = self._create_cache_file('recent.tmp', 1000, cutoff + 1)
+        future = self._create_cache_file('future.tmp', 1000, now + 1)
+        regular = self._create_cache_file('regular.cache', 1000, cutoff - 1)
+        # Only the last modification, not the last read, indicates writer activity.
+        os.utime(abandoned, (now, cutoff - 1))
+        os.utime(recent, (cutoff - 1, now))
+
+        with mock.patch('Cython.Build.Cache.time.time', return_value=now):
+            with mock.patch.object(self.cache, '_cachedir_looks_small_enough', return_value=False):
+                self.cache.cleanup_cache()
+
+        self.assertFalse(os.path.exists(abandoned))
+        for path in (boundary, recent, future, regular):
+            self.assertTrue(os.path.exists(path))
+
+    def test_cleanup_temporary_file_errors_are_best_effort(self):
+        for error in (FileNotFoundError(), PermissionError(), OSError('stale handle')):
+            with self.subTest(operation='stat', error=type(error).__name__):
+                entry = mock.Mock()
+                entry.name = 'abandoned.tmp'
+                entry.stat.side_effect = error
+                with mock.patch('Cython.Build.Cache.os.scandir') as scandir:
+                    scandir.return_value.__enter__.return_value = [entry]
+                    self.assertEqual(self.cache._list_cache_files(), (0, []))
+
+        abandoned = self._create_cache_file('abandoned.tmp', 1000, 1)
+        for error in (FileNotFoundError(), PermissionError(), OSError('stale handle')):
+            with self.subTest(operation='unlink', error=type(error).__name__):
+                with mock.patch('Cython.Build.Cache.os.unlink', side_effect=error):
+                    self.assertEqual(self.cache._list_cache_files(), (0, []))
+                self.assertTrue(os.path.exists(abandoned))
 
     def test_cleanup_stops_at_ratio_threshold(self):
         """

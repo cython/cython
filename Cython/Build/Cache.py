@@ -6,6 +6,7 @@ import operator
 import secrets
 import shutil
 import subprocess
+import time
 import zipfile
 
 from ..Utils import cached_function
@@ -31,6 +32,7 @@ zip_ext = ".zip"
 
 MAX_CACHE_SIZE = 1024 * 1024 * 100
 DEFAULT_DELETE_RATIO = 0.85
+MAX_TEMP_FILE_AGE = 7 * 24 * 60 * 60
 
 join_path = cached_function(os.path.join)
 
@@ -209,10 +211,16 @@ class Cache:
     def _list_cache_files(self):
         total_size = 0
         cache_files = []
+        temporary_cutoff = time.time() - MAX_TEMP_FILE_AGE
         with os.scandir(self.path) as entries:
             for entry in entries:
                 if entry.name.endswith('.tmp'):
-                    # Ignore temp files that might still be used by other Cython processes.
+                    # Recent files might still belong to active writers.
+                    try:
+                        if entry.stat(follow_symlinks=False).st_mtime < temporary_cutoff:
+                            os.unlink(entry.path)
+                    except OSError:
+                        pass
                     continue
                 try:
                     stat = entry.stat(follow_symlinks=False)
