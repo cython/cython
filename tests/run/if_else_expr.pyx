@@ -144,3 +144,17 @@ def test_mixed_result_type(s: str):
     """
     result = float(s) if '.' in s else int(s)
     return result
+
+
+def test_incompatible_ctuples(x):
+    """
+    https://github.com/cython/cython/issues/3446
+
+    >>> test_incompatible_ctuples(True)
+    ((True, False), (1, 2))
+    >>> test_incompatible_ctuples(False)
+    ((False,), (1.5, 2.5))
+    """
+    a = (True, False) if x else (False,)
+    b = (1, 2) if x else (1.5, 2.5)
+    return a, b
