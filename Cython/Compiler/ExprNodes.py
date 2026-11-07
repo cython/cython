@@ -14734,6 +14734,9 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             self.is_temp = True  # owned reference
         else:
             common_type = self.find_common_type(env, self.operator, self.operand1)
+            if common_type.is_memoryviewslice:
+                self.invalid_types_error(self.operand1, self.operator, self.operand2)
+                common_type = error_type
             if common_type.is_pyobject:
                 self.is_temp = True  # owned reference
 
