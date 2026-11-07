@@ -14,7 +14,6 @@ permissions:
 
 env:
   MACOSX_DEPLOYMENT_TARGET: "11.0"
-  GCC_VERSION: 10
   USE_CCACHE: 1
   CCACHE_SLOPPINESS: "pch_defines,time_macros"
   CCACHE_COMPRESS: 1
