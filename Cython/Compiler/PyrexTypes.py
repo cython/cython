@@ -946,7 +946,11 @@ class MemoryViewSliceType(PyrexType):
             type = node.type
 
         entry = Symtab.Entry(cname, cname, type, node.pos)
-        return MemoryView.MemoryViewSliceBufferEntry(entry)
+        # Use the hoisted data pointer of an argument if available (see FuncDefNode).
+        data_entry = getattr(node, 'entry', None)
+        if data_entry is not None and data_entry.memview_data_cname is None:
+            data_entry = None
+        return MemoryView.MemoryViewSliceBufferEntry(entry, data_entry=data_entry)
 
     def conforms_to(self, dst, broadcast=False, copying=False):
         """
@@ -4296,6 +4300,7 @@ class CFuncTypeArg(BaseType):
     # FIXME: is this the right setup? should None be allowed here?
     not_none = False
     or_none = False
+    is_restrict = False  # restrict-qualified memoryview argument
     accept_none = True
     accept_builtin_subtypes = False
     annotation = None
@@ -4327,7 +4332,9 @@ class CFuncTypeArg(BaseType):
         return self.type.declaration_code(self.cname, for_display)
 
     def specialize(self, values):
-        return CFuncTypeArg(self.name, self.type.specialize(values), self.pos, self.cname)
+        arg = CFuncTypeArg(self.name, self.type.specialize(values), self.pos, self.cname)
+        arg.is_restrict = self.is_restrict
+        return arg
 
     def is_forwarding_reference(self):
         if self.type.is_rvalue_reference:

@@ -3225,6 +3225,15 @@ def p_c_simple_declarator(s: PyrexScanner, ctx,
                               cmethod_flag=cmethod_flag,
                               assignable=assignable, nonempty=nonempty)
         result = node_class(pos, base=base)
+    elif s.sy == 'IDENT' and s.systring == 'restrict' and s.peek()[0] == 'IDENT':
+        # 'T restrict name' - restrict qualifier applied to a non-pointer declarator
+        # (memoryview slices, pointer typedefs).  'restrict' alone is still a valid name.
+        s.next()
+        base = p_c_declarator(s, ctx, empty=empty, is_type=is_type,
+                              cmethod_flag=cmethod_flag,
+                              assignable=assignable, nonempty=nonempty)
+        result = Nodes.CQualifierDeclaratorNode(
+            pos, base=base, is_const=False, is_restrict=True, is_name_restrict=True)
     else:
         rhs = None
         if s.sy == 'IDENT':

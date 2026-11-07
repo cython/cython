@@ -762,6 +762,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 func_arg.not_none = True
             if arg_node.or_none:
                 func_arg.or_none = True
+            if arg_node.is_restrict:
+                func_arg.is_restrict = True
             func_type_args.append(func_arg)
             if arg_node.default:
                 self.optional_arg_count += 1
@@ -929,11 +931,24 @@ class CQualifierDeclaratorNode(CDeclaratorNode):
     # is_const      boolean
     # is_restrict   boolean
 
+    # is_name_restrict  boolean   'T restrict name' form (restrict without a preceding '*')
+    # memview_restrict  boolean   set during analysis when restrict applies to a memoryview slice
+
     child_attrs = ["base"]
+    is_name_restrict = False
+    memview_restrict = False
 
     def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
         if isinstance(self.base, CFuncDeclaratorNode) and self.is_restrict:
             error(self.pos, "Restrict qualifier cannot be applied to function type")
+        if self.is_restrict and base_type.is_memoryviewslice:
+            # The slice struct itself cannot be restrict-qualified in C.  Instead, the
+            # argument's data pointer is passed as a restrict parameter to the function
+            # body (see FuncDefNode.generate_function_definitions).
+            self.memview_restrict = True
+            return self.base.analyse(base_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
+        if self.is_name_restrict and not base_type.is_ptr:
+            error(self.pos, "Restrict qualifier can only be applied to pointer or memoryview types")
         if base_type.is_pyobject:
             error(self.pos,
                   "Const/restrict base type cannot be a Python object")
@@ -983,6 +998,7 @@ class CArgDeclNode(Node):
     defaults_class_key = None
     type_from_annotation = False
     type_according_to_pxd = None
+    is_restrict = False  # restrict-qualified memoryview argument
 
     def declared_name(self):
         return self.declarator.declared_name()
@@ -1050,6 +1066,7 @@ class CArgDeclNode(Node):
             if arg_type is not None:
                 base_type = arg_type
         name, type_ = self.declarator.analyse(base_type, env, nonempty=nonempty)
+        self.update_restrict_flag()
         if type_ is None or type_ is py_object_type and self.type_according_to_pxd is not None:
             # Use an overridden type from the pxd if available.
             # If the type is resolved to something else, and contradicts
@@ -1057,6 +1074,11 @@ class CArgDeclNode(Node):
             type_ = self.type_according_to_pxd
         return name, type_
 
+
+    def update_restrict_flag(self):
+        # Must be called after analysing the declarator.
+        if isinstance(self.declarator, CQualifierDeclaratorNode) and self.declarator.memview_restrict:
+            self.is_restrict = True
 
     def inject_type_from_annotations(self, env):
         annotation = self.annotation
@@ -2137,7 +2159,35 @@ class FuncDefNode(StatNode, BlockNode):
         if self.py_func:
             self.py_func.generate_function_header(
                 code, with_pymethdef=with_pymethdef, proto_only=True)
-        self.generate_function_header(code, with_pymethdef=with_pymethdef)
+
+        # Data pointers of memoryview arguments that are never reassigned cannot change,
+        # so element accesses use a copy of the pointer (see MemoryViewSliceBufferEntry).
+        memview_data_entries = self.get_hoisted_memview_args(lenv)
+        for entry in memview_data_entries:
+            cname = entry.cname
+            if cname.startswith(Naming.pyrex_prefix):
+                cname = cname[len(Naming.pyrex_prefix):]
+            entry.memview_data_cname = Naming.memview_data_prefix + cname
+            entry.memview_data_used = False
+        # C compilers only exploit 'restrict' on function parameters, not on local variables.
+        # So for restrict memoryview arguments, the function body is generated as a
+        # force-inlined function taking the data pointers as restrict parameters, called
+        # by a thin wrapper with the original signature.
+        restrict_entries = [entry for entry in memview_data_entries if entry.memview_restrict]
+        restrict_impl_cname = None
+        if restrict_entries and self.can_split_restrict_impl():
+            restrict_impl_cname = self.get_restrict_impl_cname()
+            restrict_params = [
+                f"CYTHON_UNUSED char *CYTHON_RESTRICT {entry.memview_data_cname}"
+                for entry in restrict_entries]
+            # The slice structs may end up being unused if only their data pointers are used.
+            unused_cnames = {entry.cname for entry in restrict_entries}
+            self.generate_function_header(
+                code, with_pymethdef=with_pymethdef,
+                restrict_impl=(restrict_impl_cname, restrict_params, unused_cnames))
+        else:
+            restrict_entries = []
+            self.generate_function_header(code, with_pymethdef=with_pymethdef)
         # ----- Local variable declarations
         # Find function scope
         cenv = env
@@ -2310,6 +2360,9 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_buffer:
                 Buffer.put_acquire_arg_buffer(entry, code, self.pos)
 
+        # ----- Initialise copies of memoryview data pointers (filled in after the body)
+        memview_data_init_code = code.insertion_point() if memview_data_entries else None
+
         if code.funcstate.needs_refnanny:
             # if this is true there's definite some reference counting in
             # the variable declarations
@@ -2327,6 +2380,13 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- Function body -----
         # -------------------------
         self.generate_function_body(env, code)
+
+        for entry in memview_data_entries:
+            if entry.memview_data_used and entry not in restrict_entries:
+                # 'restrict' on a local variable is mostly ignored by C compilers but harmless.
+                restrict = "CYTHON_RESTRICT " if entry.memview_restrict else ""
+                tempvardecl_code.putln(f"char *{restrict}{entry.memview_data_cname};")
+                memview_data_init_code.putln(f"{entry.memview_data_cname} = {entry.cname}.data;")
 
         code.mark_pos(self.pos, trace=False)
         code.putln("")
@@ -2572,6 +2632,12 @@ class FuncDefNode(StatNode, BlockNode):
 
         code.putln("}")
 
+        if restrict_impl_cname:
+            self.generate_restrict_impl_wrapper(code, with_pymethdef, restrict_impl_cname, restrict_entries)
+        for entry in memview_data_entries:
+            entry.memview_data_cname = None
+            entry.memview_data_used = False
+
         if preprocessor_guard:
             code.putln("#endif /*!(%s)*/" % preprocessor_guard)
 
@@ -2584,12 +2650,46 @@ class FuncDefNode(StatNode, BlockNode):
             self.py_func.generate_function_definitions(env, code)
         self.generate_wrapper_functions(code)
 
+    def get_hoisted_memview_args(self, lenv):
+        return [
+            entry for entry in lenv.arg_entries
+            if entry.type.is_memoryviewslice and not entry.cf_is_reassigned
+            and not entry.in_closure and not entry.from_closure
+        ]
+
+    def can_split_restrict_impl(self):
+        # Whether the function body can be moved into a separate inline function.
+        return False
+
+    def get_restrict_impl_cname(self):
+        cname = self.get_function_cname()
+        if cname.startswith(Naming.pyrex_prefix):
+            cname = cname[len(Naming.pyrex_prefix):]
+        return Naming.restrict_impl_prefix + cname
+
+    def get_function_call_args(self):
+        # C names of the parameters of the generated C function, in order.
+        raise NotImplementedError
+
+    def generate_restrict_impl_wrapper(self, code, with_pymethdef, impl_cname, restrict_entries):
+        code.putln("")
+        self.generate_function_header(code, with_pymethdef=with_pymethdef)
+        args = self.get_function_call_args() + [f"{entry.cname}.data" for entry in restrict_entries]
+        call = f"{impl_cname}({', '.join(args)})"
+        if self.return_type.is_void:
+            code.putln(f"{call};")
+        else:
+            code.putln(f"return {call};")
+        code.putln("}")
+
     def declare_argument(self, env, arg):
         if arg.type.is_void:
             error(arg.pos, "Invalid use of 'void'")
         elif not arg.type.is_complete() and not (arg.type.is_array or arg.type.is_memoryviewslice):
             error(arg.pos, "Argument type '%s' is incomplete" % arg.type)
         entry = env.declare_arg(arg.name, arg.type, arg.pos)
+        if arg.is_restrict:
+            entry.memview_restrict = True
         if arg.annotation:
             entry.annotation = arg.annotation
         return entry
@@ -2995,14 +3095,36 @@ class CFuncDefNode(FuncDefNode):
     def needs_assignment_synthesis(self, env, code=None):
         return False
 
-    def generate_function_header(self, code, with_pymethdef, with_opt_args=1, with_dispatch=1, cname=None):
+    def can_split_restrict_impl(self):
+        return not (self.type.has_varargs or self.template_declaration
+                    or '::' in self.entry.func_cname)
+
+    def get_function_cname(self):
+        return self.entry.func_cname
+
+    def get_function_call_args(self):
+        # Must match the parameter list in generate_function_header().
+        type = self.type
+        args = [arg.cname for arg in type.args[:len(type.args)-type.optional_arg_count]]
+        if self.overridable:
+            args.append(Naming.skip_dispatch_cname)
+        if type.optional_arg_count:
+            args.append(Naming.optional_args_cname)
+        return args
+
+    def generate_function_header(self, code, with_pymethdef, with_opt_args=1, with_dispatch=1, cname=None,
+                                 restrict_impl=None):
+        # restrict_impl: (cname, extra parameter declarations, cnames of arguments to mark unused)
+        #                to generate the header of the force-inlined body function instead
+        #                (see FuncDefNode.generate_function_definitions).
         scope = self.local_scope
         arg_decls = []
         type = self.type
+        restrict_unused_cnames = restrict_impl[2] if restrict_impl else ()
         for arg in type.args[:len(type.args)-type.optional_arg_count]:
             arg_decl = arg.declaration_code()
             entry = scope.lookup(arg.name)
-            if not entry.cf_used:
+            if not entry.cf_used or entry.cname in restrict_unused_cnames:
                 arg_decl = 'CYTHON_UNUSED %s' % arg_decl
             arg_decls.append(arg_decl)
         if with_dispatch and self.overridable:
@@ -3016,21 +3138,28 @@ class CFuncDefNode(FuncDefNode):
             arg_decls.append(type.op_arg_struct.declaration_code(Naming.optional_args_cname))
         if type.has_varargs:
             arg_decls.append("...")
+        if restrict_impl:
+            cname, restrict_params, _ = restrict_impl
+            arg_decls.extend(restrict_params)
         if not arg_decls:
             arg_decls = ["void"]
         if cname is None:
             cname = self.entry.func_cname
         entity = type.function_header_code(cname, ', '.join(arg_decls))
-        if self.entry.visibility == 'private' and '::' not in cname:
+        if restrict_impl:
             storage_class = "static "
+            modifiers = "CYTHON_FORCE_INLINE "
         else:
-            storage_class = ""
+            if self.entry.visibility == 'private' and '::' not in cname:
+                storage_class = "static "
+            else:
+                storage_class = ""
+            modifiers = code.build_function_modifiers(self.entry.func_modifiers)
         dll_linkage = None
-        modifiers = code.build_function_modifiers(self.entry.func_modifiers)
 
         header = self.return_type.declaration_code(entity, dll_linkage=dll_linkage)
         #print (storage_class, modifiers, header)
-        needs_proto = self.is_c_class_method or self.entry.is_cproperty
+        needs_proto = (self.is_c_class_method or self.entry.is_cproperty) and not restrict_impl
         if self.template_declaration:
             if needs_proto:
                 code.globalstate.parts['module_declarations'].putln(self.template_declaration)
@@ -3416,6 +3545,7 @@ class DefNode(FuncDefNode):
                         base_type.org_buffer])
                 name_declarator, type = \
                     arg.declarator.analyse(base_type, env)
+                arg.update_restrict_flag()
                 arg.name = name_declarator.name
                 arg.type = type
 
@@ -3704,7 +3834,32 @@ class DefNode(FuncDefNode):
             self.py_wrapper.generate_function_definitions(env, code)
         FuncDefNode.generate_function_definitions(self, env, code)
 
-    def generate_function_header(self, code, with_pymethdef, proto_only=0):
+    def can_split_restrict_impl(self):
+        return True
+
+    def get_function_cname(self):
+        return self.entry.pyfunc_cname
+
+    def _arg_cname(self, arg):
+        entry = arg.entry
+        return entry.original_cname if entry.in_closure else entry.cname
+
+    def get_function_call_args(self):
+        # Must match the parameter list in generate_function_header().
+        args = []
+        if self.entry.signature.has_dummy_arg:
+            args.append(Naming.self_cname)
+        args.extend(self._arg_cname(arg) for arg in self.args)
+        if self.star_arg:
+            args.append(self._arg_cname(self.star_arg))
+        if self.starstar_arg:
+            args.append(self._arg_cname(self.starstar_arg))
+        return args
+
+    def generate_function_header(self, code, with_pymethdef, proto_only=0, restrict_impl=None):
+        # restrict_impl: (cname, extra parameter declarations, cnames of arguments to mark unused)
+        #                to generate the header of the force-inlined body function instead
+        #                (see FuncDefNode.generate_function_definitions).
         if proto_only:
             if self.py_wrapper_required:
                 self.py_wrapper.generate_function_header(
@@ -3717,6 +3872,8 @@ class DefNode(FuncDefNode):
                 self_arg = 'CYTHON_UNUSED ' + self_arg
             arg_code_list.append(self_arg)
 
+        restrict_unused_cnames = restrict_impl[2] if restrict_impl else ()
+
         def arg_decl_code(arg):
             entry = arg.entry
             if entry.in_closure:
@@ -3724,7 +3881,7 @@ class DefNode(FuncDefNode):
             else:
                 cname = entry.cname
             decl = entry.type.declaration_code(cname)
-            if not entry.cf_used:
+            if not entry.cf_used or entry.cname in restrict_unused_cnames:
                 decl = 'CYTHON_UNUSED ' + decl
             return decl
 
@@ -3734,6 +3891,12 @@ class DefNode(FuncDefNode):
             arg_code_list.append(arg_decl_code(self.star_arg))
         if self.starstar_arg:
             arg_code_list.append(arg_decl_code(self.starstar_arg))
+        if restrict_impl:
+            impl_cname, restrict_params, _ = restrict_impl
+            arg_code_list.extend(restrict_params)
+            dc = self.return_type.declaration_code(impl_cname)
+            code.putln("static CYTHON_FORCE_INLINE %s(%s) {" % (dc, ', '.join(arg_code_list)))
+            return
         if arg_code_list:
             arg_code = ', '.join(arg_code_list)
         else:

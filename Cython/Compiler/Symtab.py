@@ -162,6 +162,12 @@ class Entry:
     # TODO: utility_code and utility_code_definition serves the same purpose...
 
     inline_func_in_pxd = False
+    # memview_data_cname  string or None  cname of the hoisted data pointer of a memoryview argument
+    # memview_data_used   boolean         hoisted data pointer was used by generated code
+    # memview_restrict    boolean         memoryview argument declared 'restrict'
+    memview_data_cname = None
+    memview_data_used = False
+    memview_restrict = False
     borrowed = 0
     init = ""
     annotation = None

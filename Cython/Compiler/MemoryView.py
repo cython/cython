@@ -183,12 +183,17 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
     May be used during code generation time to be queried for
     shape/strides/suboffsets attributes, or to perform indexing or slicing.
     """
-    def __init__(self, entry):
+    def __init__(self, entry, data_entry=None):
         self.entry = entry
         self.type = entry.type
         self.cname = entry.cname
 
-        self.buf_ptr = "%s.data" % self.cname
+        if data_entry is not None:
+            # Function argument whose data pointer was hoisted into a local variable.
+            self.buf_ptr = data_entry.memview_data_cname
+            data_entry.memview_data_used = True
+        else:
+            self.buf_ptr = "%s.data" % self.cname
 
         dtype = self.entry.type.dtype
         self.buf_ptr_type = PyrexTypes.CPtrType(dtype)
@@ -269,7 +274,8 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         """
         src = self.cname
 
-        code.putln(f"{dst}.data = {src}.data;")
+        # Use buf_ptr (possibly a hoisted restrict pointer) so that slices are "based on" it.
+        code.putln(f"{dst}.data = {self.buf_ptr};")
         code.putln(f"{dst}.memview = {src}.memview;")
         if not drop_temp_refcounting:
             code.put_incref_memoryviewslice(dst, dst_type, have_gil=have_gil)
