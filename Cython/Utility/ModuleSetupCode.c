@@ -507,7 +507,7 @@
 #ifndef CYTHON_FORCE_INLINE
   #if defined(__GNUC__) || defined(__clang__)
     #define CYTHON_FORCE_INLINE CYTHON_INLINE __attribute__((__always_inline__))
-  #elif defined(_MSC_VER)
+  #elif defined(_MSC_VER) || defined(__INTEL_COMPILER)
     #define CYTHON_FORCE_INLINE __forceinline
   #else
     #define CYTHON_FORCE_INLINE CYTHON_INLINE
