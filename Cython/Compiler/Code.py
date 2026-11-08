@@ -782,7 +782,7 @@ def add_macro_processor(*macro_names, regex=None, is_module_specific=False, _las
 
             # Make sure we found and replaced all macro occurrences.
             for macro in macro_names:
-                if macro in code_string:
+                if f'{macro}(' in code_string:
                     raise RuntimeError(f"Left-over utility code macro '{macro}()' found in '{utility_code.name}'")
 
             result_is_module_specific |= is_module_specific
@@ -857,15 +857,16 @@ def _inject_string_constant(output, matchobj):
     'EMPTY',
     # As long as we use the same C access macros for these names, they are not module specific.
     # is_module_specific=True,
-    regex=r'EMPTY\((bytes|unicode|tuple)\)',
+    regex=rf'EMPTY\((bytes|str|tuple)\)',
 )
 def _inject_empty_collection_constant(output, matchobj):
     """Replace 'EMPTY(bytes|tuple|...)' by a constant Python identifier cname.
     """
-    type_name = matchobj.group(1)
-    return "%s->%s" % (
+    type_name = matchobj.group(1).upper()
+    assert type_name in Naming.empty_containers
+    return "__PYX_GET_EMPTY_CONSTANT(%s, %s)" % (
         Naming.modulestateglobal_cname,
-        getattr(Naming, f'empty_{type_name}'))
+        type_name)
 
 
 @add_macro_processor(
@@ -2780,6 +2781,17 @@ class CCodeWriter:
             return self.name_in_module_state(type.typeptr_cname)
         else:
             return type.typeptr_cname
+
+    def empty_constant_code(self, container_name, *, lookup=None):
+        container_name = container_name.upper()
+        assert container_name in Naming.empty_containers
+        if lookup is None:
+            module_state_lookup = self.name_in_module_state("")
+        else:
+            module_state_lookup = lookup("")
+        module_state_name = module_state_lookup.split("->")[0]
+        return f"__PYX_GET_EMPTY_CONSTANT({module_state_name}, {container_name})"
+
 
     # code generation
 

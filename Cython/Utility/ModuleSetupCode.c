@@ -962,6 +962,13 @@ static CYTHON_INLINE void *__Pyx__PyModule_GetState(PyObject *op)
 #define __Pyx_PyModule_GetState(op) ((void)op,$modulestateglobal_cname)
 #endif
 
+#if CYTHON_USE_MODULE_STATE && __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+// Access to module state is usually pretty slow and Python 3.13+ provides functions to help.
+#define __PYX_GET_EMPTY_CONSTANT(module_state, name) Py_GetConstantBorrowed(Py_CONSTANT_EMPTY_ ## name)
+#else
+#define __PYX_GET_EMPTY_CONSTANT(module_state, name) module_state->${empty_} ## name
+#endif
+
 // The "Try" variants may return NULL on static types with the Limited API on earlier versions
 // so should be used for optimization rather than where a result is required.
 #define __Pyx_PyObject_GetSlot(obj, name, func_ctype)  __Pyx_PyType_GetSlot(Py_TYPE((PyObject *) obj), name, func_ctype)

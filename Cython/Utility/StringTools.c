@@ -697,7 +697,7 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
             stop += length;
     }
     if (unlikely(stop <= start))
-        return __Pyx_NewRef(EMPTY(unicode));
+        return __Pyx_NewRef(EMPTY(str));
     length = stop - start;
     cstring += start;
     if (decode_func) {
@@ -733,7 +733,7 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_bytes(
     if (stop > length)
         stop = length;
     if (unlikely(stop <= start))
-        return __Pyx_NewRef(EMPTY(unicode));
+        return __Pyx_NewRef(EMPTY(str));
     length = stop - start;
     cstring += start;
     if (decode_func) {
@@ -811,7 +811,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
     else if (stop > length)
         stop = length;
     if (stop <= start)
-        return __Pyx_NewRef(EMPTY(unicode));
+        return __Pyx_NewRef(EMPTY(str));
     if (start == 0 && stop == length)
         return __Pyx_NewRef(text);
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -1195,7 +1195,7 @@ bad:
         if (__Pyx_PyTuple_SET_ITEM(value_tuple, i, values[i]) != (0)) goto bad;
     }
 
-    result = PyUnicode_Join(EMPTY(unicode), value_tuple);
+    result = PyUnicode_Join(EMPTY(str), value_tuple);
 
 bad:
     Py_DECREF(value_tuple);

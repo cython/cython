@@ -121,25 +121,25 @@ class TestUtilityCodeProcessing(TimedTest):
     def test_cglobal(self):
         self.assert_formatted_code("""
         CGLOBAL(name)
-        NAMED_CGLOBAL(empty_tuple)
+        NAMED_CGLOBAL(moddict_cname)
         """,
         expected=f"""
         {Naming.modulestateglobal_cname}->name
-        {Naming.modulestateglobal_cname}->{Naming.empty_tuple}
+        {Naming.modulestateglobal_cname}->{Naming.moddict_cname}
         """)
 
     def test_empty_builtin(self):
         self.assert_formatted_code("""
         EMPTY(tuple)EMPTY(bytes)
         EMPTY(tuple);EMPTY(bytes)
-        EMPTY(unicode)
+        EMPTY(str)
         EMPTY(bytes)
         EMPTY(tuple)
         """,
         expected=f"""
-        {Naming.modulestateglobal_cname}->{Naming.empty_tuple}{Naming.modulestateglobal_cname}->{Naming.empty_bytes}
-        {Naming.modulestateglobal_cname}->{Naming.empty_tuple};{Naming.modulestateglobal_cname}->{Naming.empty_bytes}
-        {Naming.modulestateglobal_cname}->{Naming.empty_unicode}
-        {Naming.modulestateglobal_cname}->{Naming.empty_bytes}
-        {Naming.modulestateglobal_cname}->{Naming.empty_tuple}
+        __PYX_GET_EMPTY_CONSTANT({Naming.modulestateglobal_cname}, TUPLE)__PYX_GET_EMPTY_CONSTANT({Naming.modulestateglobal_cname}, BYTES)
+        __PYX_GET_EMPTY_CONSTANT({Naming.modulestateglobal_cname}, TUPLE);__PYX_GET_EMPTY_CONSTANT({Naming.modulestateglobal_cname}, BYTES)
+        __PYX_GET_EMPTY_CONSTANT({Naming.modulestateglobal_cname}, STR)
+        __PYX_GET_EMPTY_CONSTANT({Naming.modulestateglobal_cname}, BYTES)
+        __PYX_GET_EMPTY_CONSTANT({Naming.modulestateglobal_cname}, TUPLE)
         """)
