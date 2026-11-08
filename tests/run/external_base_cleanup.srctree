@@ -1,0 +1,67 @@
+# mode: run
+
+PYTHON setup.py build_ext --inplace
+PYTHON tester.py
+
+######## setup.py ########
+
+from setuptools import setup
+from Cython.Build import cythonize
+from Cython.Compiler import Options
+
+Options.generate_cleanup_code = 3
+setup(ext_modules=cythonize("*.pyx"))
+
+######## host.pyx ########
+
+cdef extern from "Python.h":
+    ctypedef struct PyModuleDef:
+        void (*m_free)(void *)
+    PyModuleDef *PyModule_GetDef(object module)
+
+# Reproduce finalization ordering with an instance surviving module cleanup.
+def clear_module(module):
+    cdef PyModuleDef *definition = PyModule_GetDef(module)
+    assert definition != NULL and definition.m_free != NULL
+    definition.m_free(<void *>module)
+
+######## base.pxd ########
+
+cdef class Base:
+    cdef public object value
+
+######## base.pyx ########
+
+# distutils: define_macros = CYTHON_USE_TYPE_SPECS=1 CYTHON_USE_MODULE_STATE=0
+
+cdef class Base:
+    pass
+
+######## demo.pyx ########
+
+# distutils: define_macros = CYTHON_USE_TYPE_SPECS=1 CYTHON_USE_MODULE_STATE=0
+
+from base cimport Base
+
+cdef class Child(Base):
+    cdef object cycle
+
+    def __init__(self):
+        self.value = 42
+        # Defer destruction to the cyclic collector.
+        self.cycle = self
+
+def make():
+    return Child()
+
+######## tester.py ########
+
+import gc
+import host
+import demo
+
+instance = demo.make()
+assert instance.value == 42
+host.clear_module(demo)
+del instance
+gc.collect()
