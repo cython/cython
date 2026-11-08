@@ -49,9 +49,6 @@ class FusedCFuncDefNode(StatListNode):
 
     def __init__(self, node, env):
         super().__init__(node.pos)
-        if node.entry.is_special:
-            error(node.pos,
-                  "Fused types are not supported in special methods")
 
         self.nodes = []
         self.node = node
