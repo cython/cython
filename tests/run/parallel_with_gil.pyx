@@ -1,5 +1,5 @@
-# tag: run
-# tag: openmp, warnings
+# mode: run
+# tag: openmp, warnings, threads
 
 # Without freethreading_compatible this test will generate warnings to let us know
 # that parallel+GIL won't work well.
