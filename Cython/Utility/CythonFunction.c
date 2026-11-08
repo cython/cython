@@ -23,7 +23,11 @@ if (likely(__pyx_CyFunction_init($module_cname) == 0)); else
 
 #define __Pyx_CyFunction_USED
 
-#if CYTHON_OPAQUE_SHARED_TYPES
+#if CYTHON_OPAQUE_SHARED_TYPES && CYTHON_USE_MODULE_STATE
+// gc_safe can be 0, 1 for clear/traverse or 2 for visit
+static CYTHON_INLINE void *__Pyx__as_CyFunctionObject(PyObject *o, int gc_safe); /* proto */
+#define __Pyx_as_CyFunctionObject(o) ((__pyx_CyFunctionObject *)__Pyx__as_CyFunctionObject(o, 0))
+#elif CYTHON_OPAQUE_SHARED_TYPES
 #define __Pyx_as_CyFunctionObject(o) ((__pyx_CyFunctionObject *)PyObject_GetTypeData((o), CGLOBAL(__pyx_CyFunctionType)))
 #else
 #define __Pyx_as_CyFunctionObject(o) ((__pyx_CyFunctionObject *)o)
@@ -108,9 +112,33 @@ typedef struct {
 } __pyx_CyFunctionObject;
 
 #undef __Pyx_CyOrPyCFunction_Check
+
+#if CYTHON_USE_MODULE_STATE && __PYX_LIMITED_VERSION_HEX >= 0x030E0000
+// In module state mode some of these functions have QuickCheck versions which are allowed
+// to produce a false negative to avoid having to look up the module state (which is
+// generally pretty slow).
+static CYTHON_INLINE PyType_Spec *__Pyx_Get_CyFunction_Spec(void); /* proto */
+
+#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000
+#define __Pyx_CyFunction_QuickCheck(obj)  \
+    (PyType_GetBaseByToken_DuringGC(Py_TYPE(obj), __Pyx_Get_CyFunction_Spec(), NULL) == 1)
+#else
+#define __Pyx_CyFunction_QuickCheck(obj)  \
+    (PyType_GetBaseByToken(Py_TYPE(obj), __Pyx_Get_CyFunction_Spec(), NULL) == 1)
+#endif
+#define __Pyx_CyFunction_QuickCheckExact(obj)  \
+    (PyType_GetSlot(Py_TYPE(obj), Py_tp_token) == __Pyx_Get_CyFunction_Spec())
+#undef __Pyx_CyOrPyCFunction_QuickCheck
+#define __Pyx_CyOrPyCFunction_QuickCheck(obj)  \
+    (__Pyx_CyFunction_QuickCheck(obj) || __Pyx_TypeCheck(obj, &PyCFunction_Type))
+
+#else // CYTHON_USE_MODULE_STATE && __PYX_LIMITED_VERSION_HEX >= 0x030E0000
+#define __Pyx_CyFunction_QuickCheckExact(obj)  Py_IS_TYPE(obj, CGLOBAL(__pyx_CyFunctionType))
+#endif
+
 #define __Pyx_CyFunction_Check(obj)  __Pyx_TypeCheck(obj, CGLOBAL(__pyx_CyFunctionType))
 #define __Pyx_CyOrPyCFunction_Check(obj)  __Pyx_TypeCheck2(obj, CGLOBAL(__pyx_CyFunctionType), &PyCFunction_Type)
-#define __Pyx_CyFunction_CheckExact(obj)  Py_IS_TYPE(obj, CGLOBAL(__pyx_CyFunctionType))
+
 static CYTHON_INLINE int __Pyx__IsSameCyOrCFunction(PyObject *func, void (*cfunc)(void));/*proto*/
 #undef __Pyx_IsSameCFunction
 #define __Pyx_IsSameCFunction(func, cfunc)   __Pyx__IsSameCyOrCFunction(func, cfunc)
@@ -142,21 +170,62 @@ static int __pyx_CyFunction_init(PyObject *module);
 //@requires: ObjectHandling.c::CachedMethodType
 
 #if CYTHON_OPAQUE_SHARED_TYPES && CYTHON_USE_MODULE_STATE
-// Slower version of "__Pyx_as_CyFunctionObject" that's safe to use in destructors
-// (where the current module may have been lost).
-static __pyx_CyFunctionObject *__Pyx_as_CyFunctionObject_safe(PyObject *o) {
-    PyTypeObject *cyfunctype = Py_TYPE(o);
-    while (1) {
-        PyTypeObject *base = (PyTypeObject *)PyType_GetSlot(cyfunctype, Py_tp_base);
-        if (base == &PyBaseObject_Type || base == NULL) {
-            break;
+static CYTHON_INLINE void *__Pyx__as_CyFunctionObject(PyObject *o, int gc_safe) {
+    // Avoid module state lookup where possible for speed reasons.
+    // This has the additional advantage that it's safe to use in destructors
+    // (where the current object may have been lost).
+    PyTypeObject *tp = NULL;
+    int getbase_result = 0;
+#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000
+    getbase_result = PyType_GetBaseByToken_DuringGC(Py_TYPE(o), __Pyx_Get_CyFunction_Spec(), &tp);
+#elif __PYX_LIMITED_VERSION_HEX >= 0x030E0000
+    if (gc_safe <= 1) {
+        getbase_result = PyType_GetBaseByToken(Py_TYPE(o), __Pyx_Get_CyFunction_Spec(), &tp);
+        if (likely(tp)) {
+            void *typedata = PyObject_GetTypeData((o), tp);
+            Py_DECREF(tp);
+            return typedata;
         }
-        cyfunctype = base;
     }
-    return (__pyx_CyFunctionObject *)PyObject_GetTypeData((o), cyfunctype);
-}
 #else
-#define __Pyx_as_CyFunctionObject_safe __Pyx_as_CyFunctionObject
+// should be ensured in ModuleSetupCode anyway
+#error CYTHON_OPAQUE_SHARED_TYPES cannot be used with Python>=3.14
+#endif
+            
+    if (unlikely(!tp)) {
+        assert(getbase_result != -1);  // Nothing we do should ever error
+
+        // When using fused functions, it's possible that the definition of cyfunction comes from
+        // a different module than that of fused function, so lookup based on type spec may miss.
+        // In this case fall back to a slower approach.
+        if (gc_safe) {
+            // Version that's safe to use in destructors
+            // (where the current module may have been lost).
+            tp = Py_TYPE(o);
+            while (1) {
+                PyTypeObject *base = (PyTypeObject *)PyType_GetSlot(tp, Py_tp_base);
+                if (base == &PyBaseObject_Type || base == NULL) {
+                    break;
+                }
+                tp = base;
+            }
+        } else {
+            tp = CGLOBAL(__pyx_CyFunctionType);
+        }
+    }
+#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000
+    // for simpliciy always use this. We're not doing any error handling with it.
+    return PyObject_GetTypeData_DuringGC((o), tp);
+#else
+    return PyObject_GetTypeData((o), tp);
+#endif
+}
+
+#define __Pyx_as_CyFunctionObject_clearsafe(o) __Pyx__as_CyFunctionObject(o, 1)
+#define __Pyx_as_CyFunctionObject_traversesafe(o) __Pyx__as_CyFunctionObject(o, 2)
+#else
+#define __Pyx_as_CyFunctionObject_clearsafe(o) __Pyx_as_CyFunctionObject(o)
+#define __Pyx_as_CyFunctionObject_traversesafe(o) __Pyx_as_CyFunctionObject(o)
 #endif
 
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -257,6 +326,10 @@ static int __pyx_CyFunction_init(PyObject *module) {
 
     mstate->__pyx_CyFunctionType = tp;
     return 0;
+}
+
+static CYTHON_INLINE PyType_Spec *__Pyx_Get_CyFunction_Spec(void) {
+    return __Pyx__Get_CyFunction_Spec();
 }
 
 //////////////////// CythonFunctionShared.proto ////////////////////
@@ -1100,12 +1173,12 @@ static int __Pyx__CyFunction_clear(__pyx_CyFunctionObject *m)
 static int
 __Pyx_CyFunction_clear(PyObject *m)
 {
-    return __Pyx__CyFunction_clear(__Pyx_as_CyFunctionObject_safe(m));
+    return __Pyx__CyFunction_clear(__Pyx_as_CyFunctionObject_clearsafe(m));
 }
 
 static void __Pyx__CyFunction_dealloc(PyObject *m)
 {
-    __pyx_CyFunctionObject *cyfunc = __Pyx_as_CyFunctionObject_safe(m);
+    __pyx_CyFunctionObject *cyfunc = __Pyx_as_CyFunctionObject_clearsafe(m);
     if (__Pyx_CyFunction_weakreflist(cyfunc) != NULL)
         PyObject_ClearWeakRefs(m);
     __Pyx__CyFunction_clear(cyfunc);
@@ -1120,7 +1193,7 @@ static void __Pyx_CyFunction_dealloc(PyObject *m)
 
 static int __Pyx_CyFunction_traverse(PyObject *m_in, visitproc visit, void *arg)
 {
-    __pyx_CyFunctionObject *m = __Pyx_as_CyFunctionObject_safe(m_in);
+    __pyx_CyFunctionObject *m = __Pyx_as_CyFunctionObject_traversesafe(m_in);
     {
         int e = __Pyx_call_type_traverse(m_in, 1, visit, arg);
         if (e) return e;
@@ -1442,6 +1515,9 @@ static PyType_Slot __pyx_CyFunctionType_slots[] = {
     {Py_tp_members, (void *)__pyx_CyFunction_members},
     {Py_tp_getset, (void *)__pyx_CyFunction_getsets},
     {Py_tp_descr_get, (void *)__Pyx_PyMethod_New},
+#if __PYX_LIMITED_VERSION_HEX >= 0x030E0000
+    {Py_tp_token, Py_TP_USE_SPEC},
+#endif
     {0, 0},
 };
 
@@ -1480,6 +1556,10 @@ static int __pyx_CyFunction_init(PyObject *module) {
     return 0;
 }
 
+static CYTHON_INLINE PyType_Spec *__Pyx_Get_CyFunction_Spec(void) {
+    return &__pyx_CyFunctionType_spec;
+}
+
 //////////////////// CythonFunction.export ////////////////////
 
 static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml,
@@ -1489,6 +1569,7 @@ static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml,
                                       PyObject* code);
 
 static PyTypeObject *__Pyx_Get_CyFunction_Type(void);
+static PyType_Spec *__Pyx__Get_CyFunction_Spec(void);
 
 //////////////////// CythonFunction ////////////////////
 //@requires: CythonFunctionShared
@@ -1497,6 +1578,7 @@ static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml, int flags, PyObject* qual
                                       PyObject *closure, PyObject *module, PyObject* globals, PyObject* code) {
     // Only used when using shared utility module
     (void)&__Pyx_Get_CyFunction_Type;
+    (void)&__Pyx__Get_CyFunction_Spec;
 
     PyObject *op = __Pyx_CyFunction_Init(
         PyObject_GC_New(PyObject, CGLOBAL(__pyx_CyFunctionType)),
@@ -1512,6 +1594,10 @@ static PyTypeObject *__Pyx_Get_CyFunction_Type(void) {
     PyTypeObject *tp = CGLOBAL(__pyx_CyFunctionType);
     Py_INCREF((PyObject*)tp);
     return tp;
+}
+
+static PyType_Spec *__Pyx__Get_CyFunction_Spec(void) {
+    return &__pyx_CyFunctionType_spec;
 }
 
 //////////////////// CyFunctionClassCell.proto ////////////////////
