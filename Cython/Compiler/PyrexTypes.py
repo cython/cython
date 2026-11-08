@@ -6355,13 +6355,37 @@ def widest_cpp_type(type1, type2):
         return None
 
 
+def _numeric_value_type(type):
+    """
+    Return a label for the Python value type that a numeric C or Python type is converted to.
+    """
+    if type.is_complex or type.is_pycomplex_type:
+        return 'complex'
+    if type.is_float or type.is_pyfloat_type:
+        return 'float'
+    if type is c_bint_type or type.is_pybool_type:
+        return 'bool'
+    if type.is_int or type.is_enum or type.is_pyint_type:
+        return 'int'
+    return None
+
+
 def reduce_spanning_types(types):
     """Reduce a series of types to their common spanning type.
     """
     if not types:
         return py_object_type
     types = list(set_dedup(types))
-    return reduce(spanning_type, types) if types else py_object_type
+    if not types:
+        return py_object_type
+    span_type = reduce(spanning_type, types)
+    span_value_type = _numeric_value_type(span_type)
+    if span_value_type is not None and any(
+            _numeric_value_type(type) != span_value_type for type in types):
+        # Coercing the values to the spanning type would change their Python value type,
+        # e.g. int -> float -> complex or bool -> int.  Use a generic object type instead.
+        return py_object_type
+    return span_type
 
 
 def simple_c_type(signed, longness, name):
