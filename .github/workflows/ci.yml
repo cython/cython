@@ -14,7 +14,7 @@ permissions:
 
 env:
   MACOSX_DEPLOYMENT_TARGET: "11.0"
-  GCC_VERSION: 10
+  GCC_VERSION: 11
   USE_CCACHE: 1
   CCACHE_SLOPPINESS: "pch_defines,time_macros"
   CCACHE_COMPRESS: 1
@@ -110,8 +110,8 @@ jobs:
 
 
   ci-early-success:
-    needs: [codespell, codestyle, ci-early, build_docs]
-    if: ${{ always() && !contains(needs.*.result, 'cancelled') }}
+    needs: [file-changes, codespell, codestyle, ci-early, build_docs]
+    if: ${{ !cancelled() }}
     env:
       FAIL: ${{ case(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'), 1, 0) }}
     runs-on: ubuntu-latest
@@ -435,8 +435,10 @@ jobs:
 
 
   ci-success:
-    needs: [ci-early-success, ci-all, ci-arm64, ci-32bit, ci-typespecs, ci-sharedmodule, ci-module-state, ci-compileall, ci-stdc, ci-lapi, ci-noncpython]
-    if: ${{ always() && !contains(needs.*.result, 'cancelled') }}
+    # ci-arm64 excluded from ci-success due to https://developercommunity.microsoft.com/t/MSVC-ARM64-linkexe-hangs-building-Cytho/11167595
+    # on Windows. Re-add when that's fixed.
+    needs: [file-changes, ci-early-success, ci-all, ci-32bit, ci-typespecs, ci-sharedmodule, ci-module-state, ci-compileall, ci-stdc, ci-lapi, ci-noncpython]
+    if: ${{ !cancelled() }}
     env:
       FAIL: ${{ case(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'), 1, 0) }}
     runs-on: ubuntu-latest

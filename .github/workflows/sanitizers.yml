@@ -32,7 +32,7 @@ jobs:
       with:
         persist-credentials: false
       # Only needed to compare the "base" on push; not needed for PR
-      if: ${{ github.event_name == 'push' }}
+      if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d  # v4.0.3
       id: filter
       with:
@@ -79,8 +79,8 @@ jobs:
     if: ${{ case(github.event_name == 'push', needs.file-changes.outputs.push-files == 'true', github.event_name == 'pull_request', needs.file-changes.outputs.pr-files == 'true', 'true') }}
 
   sanitizers-success:
-    needs: [sanitizers, pydebug]
-    if: ${{ always() && !contains(needs.*.result, 'cancelled') }}
+    needs: [file-changes, sanitizers, pydebug]
+    if: ${{ !cancelled() }}
     env:
       FAIL: ${{ case(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'), 1, 0) }}
     runs-on: ubuntu-latest
