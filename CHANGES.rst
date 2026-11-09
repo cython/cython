@@ -32,6 +32,11 @@ Bugs fixed
 * Type references in internal freelists were not considered for garbage collection.
   (Github issue :issue:`8096`)
 
+* Iteration over literal sequences of mixed item types, e.g. ``(123, 123.45)`` or
+  ``[True, 2]``, could change the type or value of the loop variable, e.g.
+  ``123`` -> ``123.0`` or ``True`` -> ``1``.
+  (Github issue :issue:`8103`)
+
 * Iteration over literal sequences of one-character byte strings, e.g. ``[b'a', b'b']``,
   could yield integers instead of bytes objects as loop variable values.
   (Github issue :issue:`8103`)

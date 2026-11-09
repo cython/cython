@@ -18,6 +18,26 @@ class TestMethodDispatcherTransform(TimedTest):
         assert_widest(PT.c_int_type, cenum, PT.c_int_type)
 
 
+class TestSpanningTypes(TimedTest):
+
+    def test_reduce_spanning_types(self):
+        def assert_spanning(types, spanning):
+            self.assertEqual(spanning, PT.reduce_spanning_types(types))
+
+        pyint = PT.BuiltinObjectType('int', 'c_int')
+        pyfloat = PT.BuiltinObjectType('float', 'c_float')
+        pybool = PT.BuiltinObjectType('bool', 'c_bool')
+
+        # C integer and floating point types can be widened without changing their Python value type.
+        assert_spanning([PT.c_int_type, PT.c_long_type], PT.c_long_type)
+        assert_spanning([PT.c_float_type, PT.c_double_type], PT.c_double_type)
+        assert_spanning([pyfloat, PT.c_double_type], PT.c_double_type)
+        # Changing the Python value type is not acceptable.
+        assert_spanning([pyint, pyfloat], PT.py_object_type)
+        assert_spanning([pybool, pyint], PT.py_object_type)
+        assert_spanning([PT.c_double_type, PT.c_double_complex_type], PT.py_object_type)
+
+
 class TestBuiltinTypes(TimedTest):
 
     BUILTIN_FLAGS_MAPPING = {
