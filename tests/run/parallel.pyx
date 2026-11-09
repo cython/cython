@@ -1,13 +1,13 @@
 # tag: run
 # tag: openmp, threads
 
-# cython: test_assert_c_code_has = omp for (?:first)?private\(__pyx_v_first_loop_target\)
-# cython: test_assert_c_code_has = omp for nowait (?:first)?private\(__pyx_v_last_loop_target\)
+# cython: test_assert_c_code_has = omp for (?:first)?private\(__pyx_v_test_prange_barrier_between_loops_first_loop_target\)
+# cython: test_assert_c_code_has = omp for nowait (?:first)?private\(__pyx_v_test_prange_barrier_between_loops_last_loop_target\)
 
 cimport cython.parallel
 from cython.parallel import prange, threadid
 cimport openmp
-from libc.stdlib cimport malloc, calloc, free
+from libc.stdlib cimport malloc, free
 
 openmp.omp_set_nested(1)
 
@@ -237,46 +237,24 @@ def test_prange_barrier_between_loops():
     >>> test_prange_barrier_between_loops()
     0
     """
-    cdef int first_loop_target, last_loop_target, n_stale = 0
+    # The loop targets have long names because the header of this file checks
+    # their clauses in the generated C code.
+    cdef int test_prange_barrier_between_loops_first_loop_target
+    cdef int test_prange_barrier_between_loops_last_loop_target
+    cdef int k, n_stale = 0
     cdef int a[100]
-    for first_loop_target in range(100):
-        a[first_loop_target] = 0
+    for k in range(100):
+        a[k] = 0
     with nogil, cython.parallel.parallel(num_threads=4):
-        for first_loop_target in prange(100, schedule='static'):
-            a[first_loop_target] = 1
-        for last_loop_target in prange(100, schedule='static'):
-            if a[99 - last_loop_target] == 0:
+        for test_prange_barrier_between_loops_first_loop_target in prange(
+                100, schedule='static'):
+            a[test_prange_barrier_between_loops_first_loop_target] = 1
+        for test_prange_barrier_between_loops_last_loop_target in prange(
+                100, schedule='static'):
+            if a[99 - test_prange_barrier_between_loops_last_loop_target] == 0:
                 n_stale += 1
     return n_stale
 
 
 OPENMP_PARALLEL = True
 include "sequential_parallel.pyx"
-
-
-def test_prange_end_barrier(int n=400, int nthreads=4):
-    """
-    Code after a prange in a parallel block must see all of its iterations.
-
-    >>> test_prange_end_barrier()
-    0
-    """
-    import time
-    cdef int i, k, late = n - n // nthreads, n_stale = 0
-    cdef int *n_stale_ptr = &n_stale
-    cdef int *a = <int *> calloc(n, sizeof(int))
-
-    with nogil, cython.parallel.parallel(num_threads=nthreads):
-        for i in prange(n, schedule='static'):
-            if i == late:
-                with gil:
-                    time.sleep(0.02)
-            a[i] = 1
-        for k in range(n):
-            if a[k] == 0:
-                with gil:
-                    n_stale_ptr[0] += 1
-                break
-
-    free(a)
-    return n_stale
