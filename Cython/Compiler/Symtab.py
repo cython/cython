@@ -926,10 +926,7 @@ class Scope:
                 cname = name
             else:
                 cname = self.mangle(Naming.func_prefix, name)
-        inline_in_pxd = 'inline' in modifiers and in_pxd and defining
-        if inline_in_pxd:
-            # in_pxd does special things that we don't want to apply to inline functions
-            in_pxd = False
+        inline_in_pxd = 'inline' in modifiers and in_pxd
         entry = self.lookup_here(name)
         if entry:
             if not in_pxd and visibility != entry.visibility and visibility == 'extern':
@@ -970,7 +967,7 @@ class Scope:
                     else:
                         warning(pos, "Function signature does not match previous declaration", 1)
                         entry.type = type
-                elif not in_pxd and entry.defined_in_pxd and type.compatible_signature_with(entry.type):
+                elif not in_pxd and (entry.defined_in_pxd or getattr(entry, 'inline_func_in_pxd', False)) and type.compatible_signature_with(entry.type):
                     # TODO: check that this was done by a signature optimisation and not a user error.
                     #warning(pos, "Function signature does not match previous declaration", 1)
 
@@ -993,7 +990,7 @@ class Scope:
             entry.is_overridable = overridable
         if inline_in_pxd:
             entry.inline_func_in_pxd = True
-        if in_pxd and visibility != 'extern':
+        if in_pxd and visibility != 'extern' and not inline_in_pxd:
             entry.defined_in_pxd = 1
         if api:
             entry.api = 1
