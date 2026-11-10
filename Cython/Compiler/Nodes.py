@@ -11060,14 +11060,10 @@ class ParallelRangeNode(ParallelStatNode):
             code.putln("#ifdef _OPENMP")
 
         if not self.is_parallel:
-            # Code after a prange in a parallel block relies on the implicit
-            # barrier at the end of the loop. With the GIL held, that barrier
-            # would deadlock, so it's replaced by an explicit one after releasing
-            # the GIL (see below). The last statement of a parallel block needs
-            # none, the end of the parallel region follows.
-            nowait = self.acquire_gil or self.ends_parallel_block()
+            # The loop never waits at its end. When code follows it in a parallel
+            # block, an explicit barrier is put after the loop (see below).
             acquire_gil_deadlock_avoidance_point = code.insertion_point()
-            code.put("#pragma omp for nowait" if nowait else "#pragma omp for")
+            code.put("#pragma omp for nowait")
             self.privatization_insertion_point = code.insertion_point()
             reduction_codepoint = self.parent.privatization_insertion_point
         else:
@@ -11175,6 +11171,14 @@ class ParallelRangeNode(ParallelStatNode):
             # synchronization point for all loops at the end of the thread but without the GIL
             code.putln("#pragma omp barrier")
             code.putln(f"PyEval_RestoreThread({Naming.parallel_loop_threadstate});")
+            code.putln("#endif")
+        elif not (self.is_parallel or self.is_nested_prange or self.ends_parallel_block()):
+            # Code after a prange in a parallel block must see all of its iterations.
+            # A "parallel for" or the last statement of a parallel block needs no
+            # barrier, the end of the parallel region follows. In a nested prange,
+            # the barrier would end up inside the outer loop.
+            code.putln("#ifdef _OPENMP")
+            code.putln("#pragma omp barrier")
             code.putln("#endif")
 
         if self.is_parallel:

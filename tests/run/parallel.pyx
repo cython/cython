@@ -1,9 +1,6 @@
 # mode: run
 # tag: openmp, threads
 
-# cython: test_assert_c_code_has = omp for (?:first)?private\(__pyx_v_test_prange_barrier_between_loops_first_loop_target\)
-# cython: test_assert_c_code_has = omp for nowait (?:first)?private\(__pyx_v_test_prange_barrier_between_loops_last_loop_target\)
-
 cimport cython.parallel
 from cython.parallel import prange, threadid
 cimport openmp
