@@ -655,6 +655,25 @@ class __Pyx_FakeReference {
 #define __Pyx_BUILTIN_MODULE_NAME "builtins"
 #define __Pyx_DefaultClassType PyType_Type
 
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030C0000
+// Use Py_IncRef/Py_DecRef to avoid issues with unbalanced reference counting
+// on higher runtime versions with immortal objects.
+#undef Py_INCREF
+#undef Py_DECREF
+#undef Py_XINCREF
+#undef Py_XDECREF
+
+#define Py_XINCREF(op) Py_IncRef(_PyObject_CAST(op))
+#define Py_XDECREF(op) Py_DecRef(_PyObject_CAST(op))
+#if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+#define Py_INCREF(op) _Py_IncRef(_PyObject_CAST(op))
+#define Py_DECREF(op) _Py_DecRef(_PyObject_CAST(op))
+#else
+#define Py_INCREF(op) Py_IncRef(_PyObject_CAST(op))
+#define Py_DECREF(op) Py_DecRef(_PyObject_CAST(op))
+#endif
+#endif
+
 #if CYTHON_COMPILING_IN_LIMITED_API
     // Cython uses these constants but they are not available in the limited API.
     // Therefore define them as static variables and look them up at module init.
