@@ -156,6 +156,9 @@ def close_listing_file():
     if threadlocal.cython_errors_listing_file:
         threadlocal.cython_errors_listing_file.close()
         threadlocal.cython_errors_listing_file = None
+    # Drop the stderr reference too, so a later warning() cannot write to a
+    # stderr that the caller has since closed or redirected.
+    threadlocal.cython_errors_echo_file = None
 
 def report_error(err, use_stack=True):
     error_stack = threadlocal.cython_errors_stack
