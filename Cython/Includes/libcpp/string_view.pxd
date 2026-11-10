@@ -4,7 +4,7 @@ from libcpp.string cimport string
 # header conditionally to not require c++17 just for std::string.
 cdef extern from *:
     """
-    #if __cplusplus >= 201703L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L)  
+    #if __cplusplus >= 201703L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L)
     #include <string_view>
     #endif
     """
