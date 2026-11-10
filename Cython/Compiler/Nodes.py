@@ -2176,7 +2176,7 @@ class FuncDefNode(StatNode, BlockNode):
         # So for restrict memoryview arguments, the function body is generated as a
         # force-inlined function taking the data pointers as restrict parameters, called
         # by a thin wrapper with the original signature.
-        restrict_entries = [entry for entry in memview_data_entries if entry.memview_restrict]
+        restrict_entries = [entry for entry in memview_data_entries if entry.type.is_cv_qualified and entry.type.is_restrict]
         restrict_impl_cname = None
         if restrict_entries and self.can_split_restrict_impl():
             restrict_impl_cname = self.get_restrict_impl_cname()
@@ -2387,7 +2387,7 @@ class FuncDefNode(StatNode, BlockNode):
         for entry in memview_data_entries:
             if entry.memview_data_used and entry not in restrict_entries:
                 # 'restrict' on a local variable is mostly ignored by C compilers but harmless.
-                restrict = "CYTHON_RESTRICT " if entry.memview_restrict else ""
+                restrict = "CYTHON_RESTRICT " if entry.type.is_cv_qualified and entry.type.is_restrict else ""
                 tempvardecl_code.putln(f"char *{restrict}{entry.memview_data_cname};")
                 memview_data_init_code.putln(f"{entry.memview_data_cname} = {entry.cname}.data;")
 
@@ -2691,8 +2691,6 @@ class FuncDefNode(StatNode, BlockNode):
         elif not arg.type.is_complete() and not (arg.type.is_array or arg.type.is_memoryviewslice):
             error(arg.pos, "Argument type '%s' is incomplete" % arg.type)
         entry = env.declare_arg(arg.name, arg.type, arg.pos)
-        if arg.type.is_cv_qualified and arg.type.is_restrict:
-            entry.memview_restrict = True
         if arg.annotation:
             entry.annotation = arg.annotation
         return entry

@@ -158,16 +158,14 @@ class Entry:
     # pytyping_modifiers          Python type modifiers like "typing.ClassVar" but also "dataclasses.InitVar"
     # enum_int_value  None or int  If known, the int that corresponds to this enum value
     # specialiser  function or None  Callable to specialise a function to specific C arguments.
+    # memview_data_cname  string or None  cname of the hoisted data pointer of a memoryview argument
+    # memview_data_used   boolean         hoisted data pointer was used by generated code
 
     # TODO: utility_code and utility_code_definition serves the same purpose...
 
     inline_func_in_pxd = False
-    # memview_data_cname  string or None  cname of the hoisted data pointer of a memoryview argument
-    # memview_data_used   boolean         hoisted data pointer was used by generated code
-    # memview_restrict    boolean         memoryview argument declared 'restrict'
     memview_data_cname = None
     memview_data_used = False
-    memview_restrict = False
     borrowed = 0
     init = ""
     annotation = None
