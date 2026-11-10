@@ -125,7 +125,7 @@ class DeclarationWriter(TreeVisitor):
         self.put('(')
         self.comma_separated_list(node.args)
         self.put(')')
-    
+
         if node.has_explicit_exc_clause:
             if node.exception_value is not None:
                 self.put(" except")
@@ -291,7 +291,7 @@ class DeclarationWriter(TreeVisitor):
             if node.base_type.name is not None:
                 self.put(' ')
 
-        self.visit(node.declarator)        
+        self.visit(node.declarator)
         self.endline(':')
         self._visit_indented(node.body)
 
