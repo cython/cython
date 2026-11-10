@@ -763,7 +763,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             if arg_node.or_none:
                 func_arg.or_none = True
             if arg_node.is_restrict:
-                func_arg.is_restrict = True
+                func_arg.type = PyrexTypes.c_restrict_type(func_arg.type)
             func_type_args.append(func_arg)
             if arg_node.default:
                 self.optional_arg_count += 1
@@ -952,7 +952,10 @@ class CQualifierDeclaratorNode(CDeclaratorNode):
         if base_type.is_pyobject:
             error(self.pos,
                   "Const/restrict base type cannot be a Python object")
-        const = PyrexTypes.c_qualifier_type(base_type, is_const=self.is_const, is_restrict=self.is_restrict)
+        const = PyrexTypes.c_restrict_type(
+            PyrexTypes.c_qualifier_type(base_type, is_const=self.is_const),
+            is_restrict=self.is_restrict
+        )
         return self.base.analyse(const, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
 
 
@@ -2688,7 +2691,7 @@ class FuncDefNode(StatNode, BlockNode):
         elif not arg.type.is_complete() and not (arg.type.is_array or arg.type.is_memoryviewslice):
             error(arg.pos, "Argument type '%s' is incomplete" % arg.type)
         entry = env.declare_arg(arg.name, arg.type, arg.pos)
-        if arg.is_restrict:
+        if arg.type.is_cv_qualified and arg.type.is_restrict:
             entry.memview_restrict = True
         if arg.annotation:
             entry.annotation = arg.annotation

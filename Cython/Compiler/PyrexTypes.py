@@ -182,7 +182,7 @@ class PyrexType(BaseType):
     #  is_rvalue_reference   boolean     Is a C++ rvalue reference type
     #  is_const              boolean     Is a C const type
     #  is_volatile           boolean     Is a C volatile type
-    #  is_cv_qualified       boolean     Is a C const or volatile type
+    #  is_cv_qualified       boolean     Is a C const, restrict or volatile type
     #  is_cfunction          boolean     Is a C function type
     #  is_struct_or_union    boolean     Is a C struct or union type
     #  is_struct             boolean     Is a C struct type
@@ -2325,7 +2325,7 @@ class CQualifierType(BaseType):
             cvstring = "const " + cvstring
         if self.is_volatile:
             cvstring = "volatile " + cvstring
-        if self.is_restrict:
+        if self.is_restrict and not self.cv_base_type.is_memoryviewslice:
             cvstring = "restrict " if for_display else "CYTHON_RESTRICT " + cvstring
 
         return cvstring
@@ -2386,6 +2386,10 @@ def c_const_type(base_type, is_const: bool = True):
     """
     return CQualifierType(base_type, is_const=is_const)
 
+def c_restrict_type(base_type, is_restrict: bool = True):
+    """Creates a C 'restrict ...' type but does not test for 'error_type'.
+    """
+    return CQualifierType(base_type, is_restrict=is_restrict)
 
 class FusedType(CType):
     """
@@ -4300,7 +4304,6 @@ class CFuncTypeArg(BaseType):
     # FIXME: is this the right setup? should None be allowed here?
     not_none = False
     or_none = False
-    is_restrict = False  # restrict-qualified memoryview argument
     accept_none = True
     accept_builtin_subtypes = False
     annotation = None
@@ -4333,7 +4336,6 @@ class CFuncTypeArg(BaseType):
 
     def specialize(self, values):
         arg = CFuncTypeArg(self.name, self.type.specialize(values), self.pos, self.cname)
-        arg.is_restrict = self.is_restrict
         return arg
 
     def is_forwarding_reference(self):
