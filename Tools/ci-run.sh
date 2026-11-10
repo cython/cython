@@ -35,7 +35,7 @@ elif [[ $OSTYPE == "darwin"* ]]; then
 else
   echo "Skipping compiler setup: No setup specified for $OSTYPE"
 fi
-if [[ $OSTYPE == "linux-gnu"* && CC == "clang"* ]]; then
+if [[ $OSTYPE == "linux-gnu"* && $CC == "clang"* ]]; then
   sudo apt-get install -y -q libomp-dev || exit 1
 fi
 
