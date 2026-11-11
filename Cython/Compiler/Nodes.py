@@ -11051,7 +11051,8 @@ class ParallelRangeNode(ParallelStatNode):
         stat = self.parent.body
         while isinstance(stat, StatListNode) and stat.stats:
             stat = stat.stats[-1]
-        return stat is self
+        # The else clause runs after the loop and may read its variables.
+        return stat is self and not self.else_clause
 
     def generate_loop(self, code, fmt_dict):
         if self.is_nested_prange:
