@@ -9217,6 +9217,11 @@ class TupleNode(SequenceNode):
 
     gil_message = "Constructing Python tuple"
 
+    @classmethod
+    def for_ctuple(cls, pos, args, ctuple_type, env):
+        assert len(args) > 0
+        return cls(pos, args=args).coerce_to_ctuple(ctuple_type, env)
+
     def infer_type(self, env):
         if self.mult_factor or not self.args:
             return tuple_type
@@ -12249,20 +12254,20 @@ class TypecastNode(ExprNode):
 
         from .UtilNodes import EvalWithTempExprNode, ResultRefNode
         operand_ref = ResultRefNode(self.operand)
-        items = [
-            TypecastNode(
+        items = []
+        for i, item_type in enumerate(self.type.components):
+            item = IndexNode(
                 self.pos,
-                operand=IndexNode(
-                    self.pos,
-                    base=operand_ref,
-                    index=IntNode(self.pos, value=str(i), constant_result=i, type=PyrexTypes.c_py_ssize_t_type),
-                ),
-                type=item_type,
-                typecheck=self.typecheck,
-            )
-            for i, item_type in enumerate(self.type.components)
-        ]
-        node = TupleNode(self.pos, args=items).analyse_types(env).coerce_to(self.type, env)
+                base=operand_ref,
+                index=IntNode.for_size(self.pos, i),
+            ).analyse_base_and_index_types(env, getting=True)
+            if not item_type.assignable_from(item.type):
+                # Implicit coercion is not possible (e.g. double -> int), so cast explicitly.
+                item = TypecastNode(
+                    self.pos, operand=item, type=item_type, typecheck=self.typecheck,
+                ).analyse_types(env)
+            items.append(item)
+        node = TupleNode.for_ctuple(self.pos, items, self.type, env)
         return EvalWithTempExprNode(operand_ref, node)
 
     def is_simple(self):
