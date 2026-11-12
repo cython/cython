@@ -4108,7 +4108,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
         if string_node.has_constant_result():
             try:
-                constant_result = string_node.constant_result.decode(encoding, error_handling)
+                constant_result = string_node.constant_result.decode(encoding or 'utf-8', error_handling)
             except (AttributeError, ValueError, UnicodeDecodeError):
                 pass
             else:
