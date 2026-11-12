@@ -292,6 +292,12 @@ def cythonize_cython(cython_dir: pathlib.Path, c_macros=None, cythonize_only=Fal
             compiled_modules.remove(compiled_module)
             source_files.remove(source_file)
 
+    # Pre-translate the .pyx module before the parallel minimal build, too.
+    # Shared module generation otherwise changes global compiler options while parsing it.
+    refnanny_source = os.path.join('Cython', 'Runtime', 'refnanny.pyx')
+    if (cython_dir / refnanny_source).is_file():
+        source_files.append(refnanny_source)
+
     parallel = f'-j{len(source_files)}'
 
     cythonize_times = {}
