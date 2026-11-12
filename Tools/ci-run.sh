@@ -35,6 +35,11 @@ else
   echo "Skipping compiler setup: No setup specified for $OSTYPE"
 fi
 
+if [[ $OSTYPE == "msys" || $OSTYPE == "cygwin" ]]; then
+  # stdlib distutils mutates PATH during MSVC spawn and breaks parallel builds.
+  export SETUPTOOLS_USE_DISTUTILS=local
+fi
+
 if [[ $COVERAGE == "1" ]]; then
   echo "Skip setting up compilation caches"
 elif [[ $OSTYPE == "msys" || $OSTYPE == "cygwin" ]]; then
