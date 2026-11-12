@@ -1,9 +1,18 @@
 from libcpp.string cimport string
 
-cdef extern from "<string_view>" namespace "std::string_view" nogil:
+# string.pxd includes string_view to implement conversions. Therefore include the
+# header conditionally to not require c++17 just for std::string.
+cdef extern from *:
+    """
+    #if __cplusplus >= 201703L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L)
+    #include <string_view>
+    #endif
+    """
+
+cdef extern from * namespace "std::string_view" nogil:
     const size_t npos
 
-cdef extern from "<string_view>" namespace "std" nogil:
+cdef extern from * namespace "std" nogil:
 
     cdef cppclass string_view:
         ctypedef char value_type
