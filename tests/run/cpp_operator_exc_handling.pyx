@@ -33,18 +33,8 @@ cdef extern from "cpp_operator_exc_handling_helper.hpp" nogil:
         wrapped_int operator>>(long long shift) except +
         wrapped_int &operator++() except +
         wrapped_int &operator--() except +
-        wrapped_int &operator+=() except +
-        wrapped_int &operator-=() except +
-        wrapped_int &operator*=() except +
-        wrapped_int &operator/=() except +
-        wrapped_int &operator%=() except +
         wrapped_int operator++(int) except +
         wrapped_int operator--(int) except +
-        wrapped_int operator+=(int) except +
-        wrapped_int operator-=(int) except +
-        wrapped_int operator*=(int) except +
-        wrapped_int operator/=(int) except +
-        wrapped_int operator%=(int) except +
         wrapped_int operator!() except +
         bool operator bool() except +
         wrapped_int &operator[](long long &index) except +IndexError
