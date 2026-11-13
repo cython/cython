@@ -1,4 +1,4 @@
-# tag: run
+# mode: run
 # tag: openmp, threads
 
 cimport cython.parallel
@@ -183,7 +183,7 @@ def test_parallel_catch():
                     if i + j > 60:
                         with gil:
                             raise Exception("try and catch me if you can!")
-            except Exception, e:
+            except Exception as e:
                 exceptions.append(e)
                 break
 

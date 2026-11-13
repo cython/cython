@@ -717,6 +717,25 @@ class __Pyx_FakeReference {
 #define __Pyx_BUILTIN_MODULE_NAME "builtins"
 #define __Pyx_DefaultClassType PyType_Type
 
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030C0000
+// Use Py_IncRef/Py_DecRef to avoid issues with unbalanced reference counting
+// on higher runtime versions with immortal objects.
+#undef Py_INCREF
+#undef Py_DECREF
+#undef Py_XINCREF
+#undef Py_XDECREF
+
+#define Py_XINCREF(op) Py_IncRef(_PyObject_CAST(op))
+#define Py_XDECREF(op) Py_DecRef(_PyObject_CAST(op))
+#if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+#define Py_INCREF(op) _Py_IncRef(_PyObject_CAST(op))
+#define Py_DECREF(op) _Py_DecRef(_PyObject_CAST(op))
+#else
+#define Py_INCREF(op) Py_IncRef(_PyObject_CAST(op))
+#define Py_DECREF(op) Py_DecRef(_PyObject_CAST(op))
+#endif
+#endif
+
 #if CYTHON_COMPILING_IN_LIMITED_API
     // Cython uses these constants but they are not available in the limited API.
     // Therefore define them as static variables and look them up at module init.
@@ -1778,8 +1797,18 @@ static CYTHON_SMALL_CODE PyObject* ${pymodule_create_func_cname}(PyObject *spec,
     if (__Pyx_check_single_interpreter())
         return NULL;
     #endif
-    if (${module_cname})
+    if (${module_cname}) {
+    #if CYTHON_USE_MODULE_STATE
+        // CPython resets md_state of the module that Py_mod_create returns,
+        // so handing back the live module would wipe its state.
+        PyErr_Format(PyExc_ImportError,
+            "Module '%s' has already been imported into this interpreter. Re-importing it is not supported.",
+            def->m_name);
+        return NULL;
+    #else
         return __Pyx_NewRef(${module_cname});
+    #endif
+    }
 
     modname = PyObject_GetAttrString(spec, "name");
     if (unlikely(!modname)) goto bad;
@@ -2874,13 +2903,14 @@ typedef struct {
 // is the size of the array.
 
 #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
-static __pyx_atomic_int_type __Pyx_ModuleStateLookup_read_counter = 0;
+// explicit initialization isn't needed for static globals, and fails on c++11/14.
+static __pyx_atomic_int_type __Pyx_ModuleStateLookup_read_counter /*= 0*/;
 #endif
 
 // A sorted list of (sub)interpreter IDs and the module that was imported into that interpreter.
 // For now look this up via binary search.
 #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
-static __pyx_atomic_ptr_type __Pyx_ModuleStateLookup_data = 0;
+static __pyx_atomic_ptr_type __Pyx_ModuleStateLookup_data /*= 0*/;
 #else
 static __Pyx_ModuleStateLookupData* __Pyx_ModuleStateLookup_data = NULL;
 #endif

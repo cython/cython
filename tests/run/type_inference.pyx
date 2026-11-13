@@ -738,6 +738,33 @@ def loop_over_bools():
     print(typeof(py_b))
 
 
+def loop_over_mixed_sequence_literals():
+    """
+    >>> loop_over_mixed_sequence_literals()
+    Python object
+    Python object
+    ['int', 'float']
+    ['bool', 'int']
+    """
+    for int_float_item in (123, 123.45):
+        assert typeof(int_float_item) == 'Python object', typeof(int_float_item)
+    print(typeof(int_float_item))
+
+    for bool_int_item in [True, 2]:
+        assert typeof(bool_int_item) == 'Python object', typeof(bool_int_item)
+    print(typeof(bool_int_item))
+
+    int_float_items = []
+    for item in (123, 123.45):
+        int_float_items.append(item)
+    print([type(item).__name__ for item in int_float_items])
+
+    bool_int_items = []
+    for item in [True, 2]:
+        bool_int_items.append(item)
+    print([type(item).__name__ for item in bool_int_items])
+
+
 cdef struct MyStruct:
     int a
 
@@ -1182,3 +1209,31 @@ def type_bitwise_or(actually_run_it, type t1, type t2):
         t3 = t1 | t2
     # Generic object, not "type"
     assert typeof(t3) == "Python object", typeof(t3)
+
+
+def resolve_circular_dependencies(ints: list[int]):
+    """
+    >>> resolve_circular_dependencies([])
+    Python object
+    0
+    >>> resolve_circular_dependencies([0, 1, 2])
+    Python object
+    4
+    >>> resolve_circular_dependencies([0, 1, 2, 5, 12, 16])
+    Python object
+    28
+    """
+    # Modelled after FlowControl.check_definitions().
+    a: int = 0
+    i: object = 1
+    i_state = a
+    for value in ints:
+        i_state = i_state & ~value
+        if value > 5:
+            i_state |= value
+        else:
+            i_state |= i
+        i <<= 1
+
+    print(typeof(i_state))
+    return i_state

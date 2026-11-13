@@ -4986,6 +4986,11 @@ class EnumMixin:
     Common implementation details for C and C++ enums.
     """
 
+    _subinterpreters_incompatible_message = (
+        "Module is declared as 'subinterpreters_compatible' but uses cpdef enums. "
+        "This is not supported yet since it uses global cdef objects and will likely crash."
+    )
+
     def create_enum_to_py_utility_code(self, env):
         from .UtilityCode import CythonUtilityCode
         self.to_py_function = "__Pyx_Enum_%s_to_py" % type_identifier(self)
@@ -5094,7 +5099,9 @@ class CppScopedEnumType(CType, EnumMixin):
                 "enum_doc": self.doc,
                 "static_modname": env.qualified_name,
             },
-            outer_module_scope=env.global_scope())
+            outer_module_scope=env.global_scope(),
+            subinterpreters_incompatible_message=self._subinterpreters_incompatible_message
+        )
 
         env.use_utility_code(rst)
 
@@ -5212,7 +5219,9 @@ class CEnumType(CIntLike, CType, EnumMixin):
                      "enum_to_pyint_func": enum_to_pyint_func,
                      "static_modname": env.qualified_name,
                      },
-            outer_module_scope=env.global_scope()))
+            outer_module_scope=env.global_scope(),
+            subinterpreters_incompatible_message=self._subinterpreters_incompatible_message
+        ))
 
     def create_to_py_utility_code(self, env):
         if self.to_py_function is not None:
@@ -6347,13 +6356,37 @@ def widest_cpp_type(type1, type2):
         return None
 
 
+def _numeric_value_type(type):
+    """
+    Return a label for the Python value type that a numeric C or Python type is converted to.
+    """
+    if type.is_complex or type.is_pycomplex_type:
+        return 'complex'
+    if type.is_float or type.is_pyfloat_type:
+        return 'float'
+    if type is c_bint_type or type.is_pybool_type:
+        return 'bool'
+    if type.is_int or type.is_enum or type.is_pyint_type:
+        return 'int'
+    return None
+
+
 def reduce_spanning_types(types):
     """Reduce a series of types to their common spanning type.
     """
     if not types:
         return py_object_type
     types = list(set_dedup(types))
-    return reduce(spanning_type, types) if types else py_object_type
+    if not types:
+        return py_object_type
+    span_type = reduce(spanning_type, types)
+    span_value_type = _numeric_value_type(span_type)
+    if span_value_type is not None and any(
+            _numeric_value_type(type) != span_value_type for type in types):
+        # Coercing the values to the spanning type would change their Python value type,
+        # e.g. int -> float -> complex or bool -> int.  Use a generic object type instead.
+        return py_object_type
+    return span_type
 
 
 def simple_c_type(signed, longness, name):

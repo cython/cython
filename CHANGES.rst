@@ -2,17 +2,152 @@
 Cython Changelog
 ================
 
-3.3.1 (2026-??-??)
-==================
+3.4.0a0 (2027-??-??)
+====================
+
+Features added
+--------------
+
+* Some previously unsupported unpacking cases in assignments were implemented.
+  Patch by Enrico Lockner.  (Github issue :issue:`8105`)
+
+* Docstrings are now dedented, following Python 3.13+.
+  Patch by Won-Kyu Park.  (Github issue :issue:`8075`)
+
+* Runtime conversion of a read-only memoryview to a writable memoryview is now detected
+  and raises an exception.
+  (Github issue :issue:`8073`)
 
 Bugs fixed
 ----------
 
+* Returning the declared exception value without actually raising an exception
+  now raises an exception instead of crashing.
+  Patch by Vladimir Saraikin.  (Github issue :issue:`7857`)
+
+* ``None`` default values passed into optimised string methods (as start/end position)
+  were mishandled and let the call fail.
+  (Github issue :issue:`8098`)
+
+* Type references in internal freelists were not considered for garbage collection.
+  (Github issue :issue:`8096`)
+
+* Iteration over literal sequences of mixed item types, e.g. ``(123, 123.45)`` or
+  ``[True, 2]``, could change the type or value of the loop variable, e.g.
+  ``123`` -> ``123.0`` or ``True`` -> ``1``.
+  (Github issue :issue:`8103`)
+
+Other changes
+-------------
+
+
+3.3.1 (2026-11-01)
+==================
+
+Most of the bugs fixed in this release were regressions in 3.3.0.
+
+Features added
+--------------
+
+* Declarations for the C99 ``bool`` type in ``<stdbool.h>`` were added.
+  (Github issue :issue:`8011`)
+
+* Fused function objects are slightly smaller in the Limited API.
+  (Github issue :issue:`7967`)
+
+* Cython warns when enabling subinterpreter support for modules that cannot
+  currently support it for technical reasons.
+  (Github issue :issue:`8006`)
+
+* The shared module is now automatically declared as ``freethreading_compatible`` and sets
+  ``subinterpretes_compatible`` as applicable (currently depending on memoryview usage).
+  Both are overridable by users as usual.
+  (Github issue :issue:`8037`)
+
+Bugs fixed
+----------
+
+* Constant folding of multiplied sequences could return incorrect results.
+  Patch by orztrickster.  (Github issue :issue:`8021`)
+
+* Cython 3.3.0 incorrectly assumed that Python integer powers always return integers.
+  Patch by Clay Dugo.  (Github issue :issue:`7989`)
+
+* The return value of optimised calls to ``dict.get()``, ``dict.pop()`` and ``dict.setdefault()``
+  were inferred independent of their default values, leading to incorrect C code being generated.
+  (Github issue :issue:`7991`)
+
+* Some redeclarations of annotated variables were incorrectly rejected.
+  They are now generally allowed and Cython only warns about obviously incorrect cases.
+  (Github issue :issue:`7920`)
+
 * Type inference now respects ``annotation_typing=False`` for local variable annotations.
-  (Github issue :issue:`7994`)
+  Patch by GruffElixir.  (Github issue :issue:`7994`)
+
+* Type inference depended on arbitrary set ordering when circular references are involved.
+  As an effect, the ``Cython.Compiler.FlowControl`` module was translated to slightly
+  non-deterministic C code.
+  (Github issue :issue:`8002`)
+
+* Assigning different slices of the same memoryview to different extension type attributes
+  could generate incorrect refcounting code.
+  (Github issue :issue:`8016`)
+
+* Enabling vectorcall for a class with a base class that doesn't have it incorrectly called
+  up to the non-existing base class vectorcall slot.
+  (Github issue :issue:`7936`)
+
+* Cascaded assignments to differently type-inferred variables could generate incorrect C code.
+  (Github issue :issue:`7937`)
+
+* Method calls on typed containers with unused results could generate incorrect C code.
+  (Github issue :issue:`7922`)
+
+* Using ``None``-returning builtin methods as part of expressions could generate incorrect C code.
+  (Github issue :issue:`7946`)
+
+* The C code generated for exception groups could lack a C variable declaration.
+  Patch by bwenstar.  (Github issue :issue:`8043`)
+
+* Exporting fused functions generated invalid C code in API header files.
+  Patch by Ardi Loot.  (Github issue :issue:`7972`)
+
+* With ``CYTHON_USE_MODULE_STATE=1``, using a memoryview typed argument with default generated incorrect C code.
+  Patch by demrom.  (Github issue :issue:`7981`)
+
+* Non-trivially generated keyword arguments (e.g. ``**{dict}``) could fail to compile.
+  (Github issue :issue:`7921`)
+
+* Builtin method calls on dicts from non-trivial expressions could fail to compile.
+  (Github issue :issue:`7931`)
+
+* Some builtin optimisations could fail to compile on non-trivial expressions.
+  (Github issue :issue:`7957`)
+
+* Typing a global variable with an unknown type could fail to compile.
+  (Github issue :issue:`7970`)
+
+* Declaring a C array of extension types crashed Cython after reporting the error.
+  Patch by Vladimir Saraikin.  (Github issue :issue:`1993`)
+
+* Optimised string comparison to single-character text strings accidentally allowed bytes.
+  (Github issue :issue:`7924`)
+
+* Errors while testing object attributes in match statements were ignored.
+  Patch by Vineet Kumar.  (Github issue :issue:`8029`)
 
 * A dangling pointer was fixed when assigning to attributes of extension types.
   (Github issue :issue:`7907`)
+
+* Re-raising an exception from an awaited Python coroutine could leak a frame reference.
+  Patch by bwenstar.  (Github issue :issue:`8042`)
+
+* Trying to reimport a module compiled with module state now raises an exception instead of
+  returning the original module, which let CPython overwrite the module state and crash.
+  Patch by Max Azatian.  (Github issue :issue:`8048`)
+
+* Throwing into a pending async generator's ``aclose()`` could crash.
+  Patch by Arthur Villeneuve.  (Github issue :issue:`8027`)
 
 * A crash was resolved when mixing Cython modules compiled with different Limited API versions.
   (Github issue :issue:`7914`)
@@ -23,8 +158,80 @@ Bugs fixed
 * ``isfinite()`` was used for Python float comparisons but not defined in NetBSD in C++ compile mode.
   (Github issue :issue:`7915`)
 
+* The ``__Pyx_pretend_to_initialize()`` function could fail to compile in C code that doesn't even need it.
+  (Github issue :issue:`7941`)
+
+* Modules containing only the empty string as single bytes literal generated invalid C code.
+  (Github issue :issue:`7965`)
+
+* User cimports of C++ names could break the internally generated C++ conversion functions
+  and lead to compile failures or incorrect C++ code.
+  (Github issue :issue:`7939`)
+
+* The C code generated for the shared module was not deterministic.
+  Patch by Ralf Gommers.  (Github issue :issue:`7982`)
+
+* Special .pxd file names like ``__init__.pxd`` and version file suffixes were mishandled
+  when stripping file paths.
+  Patch by Ralf Gommers.  (Github issue :issue:`7984`)
+
+* Non-standard type initialisation in SageMath allowed repeated initialisation
+  of Cython's internal types, overwriting the previous types and leaking memory.
+  Patch by Chenxin Zhong.  (Github issue :issue:`7976`)
+
+* Single-phase module initialisation in freethreading Python didn't allow overriding the
+  FT-compatibility flag from a C macro (as supported for multi-phase initialisation).
+  (Github issue :issue:`8036`)
+
 * A C compiler warning in MSVC was resolved.
   (Github issue :issue:`7911`)
+
+* A C compiler warning for an unused variable was resolved.
+  Patch by WyattBlue.  (Github issue :issue:`8087`)
+
+* PyPy now uses type specs by default.
+  Patch by Matti Picus.  (Github issue :issue:`7947`)
+
+* Some older PyPy C-API workarounds were disabled for newer versions.
+  Patch by Matti Picus.  (Github issue :issue:`7974`)
+
+* GraalPython now uses the Limited API for Cython functions.
+  Patch by Michael Šimáček.  (Github issue :issue:`7971`)
+
+* The C-API of the ``array`` module is supported in GraalPython.
+  (Github issue :issue:`7964`)
+
+* Older Android builds no longer use C ``complex`` (which they only partially implemented).
+  (Github issue :issue:`8026`)
+
+* Copying the ``Shadow.py`` module into user packages could fail due to internal re-imports.
+  Patch by Vincent Fazio.  (Github issue :issue:`7999`)
+
+* Several issues were resolved when using the Cython file cache directory in concurrent processes.
+  The cache is also more effective now because it previously deleted the most recent instead of
+  the oldest file on cleanup.
+  Patches by Lawrence Mitchell and Samuel Hills.
+  (Github issues :issue:`7983`, :issue:`7985`, :issue:`8090`)
+
+* The Cython file cache key didn't take the compiler directives into account.
+  Patch by Robert Dazi.  (Github issue :issue:`7532`)
+
+* The encoding line detection at the start of source files was too eager to search also non-comments.
+  (Github issue :issue:`7935`)
+
+* Enabling annotated HTML file generation together with the shared module could fail to compile.
+  (Github issue :issue:`7910`)
+
+Other changes
+-------------
+
+* Generating a shared utility module no longer embeds its destination directory
+  in the generated C code, making the output reproducible across build directories.
+  It is now recommended to pass the ``--module-name`` option to ``cython generate-shared``
+  to provide the fully qualified module name explicitly.  This option was ignored
+  for the shared module in earlier versions of Cython.
+  This is a follow-up fix to the one in 3.3.0, for ``generate-shared /path/to/_{sharedname}.c``.
+  Patch by Ralf Gommers.  (Github issue :issue:`7723`)
 
 
 3.3.0 (2026-08-22)
@@ -947,7 +1154,7 @@ Other changes
 
 
 3.2.10 (2026-0?-??)
-==================
+===================
 
 Bugs fixed
 ----------

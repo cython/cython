@@ -986,6 +986,32 @@ static void __Pyx_ClearFreelist(PyObject **freelist, int *count) {
 #endif
 
 
+////////////////// VisitFreelist.proto ///////////////////////
+
+#if CYTHON_USE_FREELISTS
+static int __Pyx_VisitFreelist(PyObject **freelist, int count, visitproc visit, void *arg); /* proto */
+#endif
+
+////////////////// VisitFreelist ////////////////////////////
+
+#if CYTHON_USE_FREELISTS
+static int __Pyx_VisitFreelist(PyObject **freelist, int count, visitproc visit, void *arg) {
+#if CYTHON_USE_TYPE_SPECS
+    while (count > 0) {
+        PyObject* o = freelist[--count];
+        PyTypeObject *tp = Py_TYPE(o);
+        // The object itself is empty but still has a reference to the type.
+        Py_VISIT(tp);
+    }
+#else
+    CYTHON_UNUSED_VAR(freelist);
+    CYTHON_UNUSED_VAR(count);
+#endif
+    return 0;
+}
+#endif
+
+
 /////////////////// ApplySequenceOrMappingFlag.proto //////////////////////
 
 #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY

@@ -14,7 +14,7 @@ permissions:
 
 env:
   MACOSX_DEPLOYMENT_TARGET: "11.0"
-  GCC_VERSION: 10
+  GCC_VERSION: 11
   USE_CCACHE: 1
   CCACHE_SLOPPINESS: "pch_defines,time_macros"
   CCACHE_COMPRESS: 1
@@ -44,7 +44,7 @@ jobs:
         persist-credentials: false
       # Only needed to compare the "base" on push; not needed for PR
       if: ${{ github.event_name == 'push' }}
-    - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706  # v4.0.2
+    - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d  # v4.0.3
       id: filter
       with:
         base: ${{ github.ref }}
@@ -110,8 +110,8 @@ jobs:
 
 
   ci-early-success:
-    needs: [codespell, codestyle, ci-early, build_docs]
-    if: ${{ always() && !contains(needs.*.result, 'cancelled') }}
+    needs: [file-changes, codespell, codestyle, ci-early, build_docs]
+    if: ${{ !cancelled() }}
     env:
       FAIL: ${{ case(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'), 1, 0) }}
     runs-on: ubuntu-latest
@@ -156,8 +156,8 @@ jobs:
           - "3.13t"
           #- "3.14"  # -> 'ci-early'
           - "3.14t"
-          - "3.15-dev"
-          - "3.15t-dev"
+          - "3.15"
+          - "3.15t"
 
         exclude:
           # Windows and free-threading is difficult to build right now
@@ -264,6 +264,29 @@ jobs:
       backend: ${{ matrix.backend }}
       shared_utility: "--shared-utility"
       extra_hash: "-shared-utility"
+
+
+  ci-module-state:
+    # compile with shared utility module
+    needs: [ci-early-success, file-changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.file-changes.outputs.ci-changes == 'true' || github.ref_type == 'tag' }}
+
+    strategy:
+      # Allows for matrix sub-jobs to fail without canceling the rest
+      fail-fast: false
+      matrix:
+        backend: [c,cpp]
+        python-version:
+          - "3.14"
+        os: [ubuntu-24.04]
+
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      os: ${{ matrix.os }}
+      python-version: ${{ matrix.python-version }}
+      backend: ${{ matrix.backend }}
+      extra_cflags: "-DCYTHON_USE_MODULE_STATE=1"
+      extra_hash: "-module-state"
 
 
   ci-compileall:
@@ -412,8 +435,10 @@ jobs:
 
 
   ci-success:
-    needs: [ci-early-success, ci-all, ci-arm64, ci-32bit, ci-typespecs, ci-sharedmodule, ci-compileall, ci-stdc, ci-lapi, ci-noncpython]
-    if: ${{ always() && !contains(needs.*.result, 'cancelled') }}
+    # ci-arm64 excluded from ci-success due to https://developercommunity.microsoft.com/t/MSVC-ARM64-linkexe-hangs-building-Cytho/11167595
+    # on Windows. Re-add when that's fixed.
+    needs: [file-changes, ci-early-success, ci-all, ci-32bit, ci-typespecs, ci-sharedmodule, ci-module-state, ci-compileall, ci-stdc, ci-lapi, ci-noncpython]
+    if: ${{ !cancelled() }}
     env:
       FAIL: ${{ case(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'), 1, 0) }}
     runs-on: ubuntu-latest
@@ -450,7 +475,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -478,7 +503,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -488,7 +513,7 @@ jobs:
           make -C docs html
 
       - name: Upload HTML docs
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: htmldocs
           path: docs/build/html
