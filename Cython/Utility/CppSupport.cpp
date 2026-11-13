@@ -123,6 +123,10 @@ public:
         this->emplace(*rhs);
         return *this;
     }
+    __Pyx_Optional_Type& operator=(__Pyx_Optional_Type& rhs) {
+        this->emplace(*rhs);
+        return *this;
+    }
     __Pyx_Optional_Type& operator=(__Pyx_Optional_Type&& rhs) {
         this->emplace(std::move(*rhs));
         return *this;

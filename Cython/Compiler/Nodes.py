@@ -11045,7 +11045,22 @@ class ParallelRangeNode(ParallelStatNode):
 
         self.release_closure_privates(code)
 
+    def _copy_out_privates(self, code, private_temps, fmt_dict):
+        # re-implement "lastprivate" manually to avoid blocking
+        # when handling the GIL
+        if self.is_nested_prange:
+            code.putln("#if 0")
+        else:
+            code.putln("#ifdef _OPENMP")
+        code.putln(f"if ({fmt_dict['i']} == ({fmt_dict['nsteps']}-1)) {{")
+        for tmp, entry in private_temps:
+            code.putln(f"*{tmp} = {entry.cname};")
+        code.putln("}")
+        code.putln("#endif")
+
+
     def generate_loop(self, code, fmt_dict):
+        preprivitization_insertion_point = code.insertion_point()
         if self.is_nested_prange:
             code.putln("#if 0")
         else:
@@ -11086,6 +11101,7 @@ class ParallelRangeNode(ParallelStatNode):
             acquire_gil_deadlock_avoidance_point.putln(
                 f"PyThreadState *{Naming.parallel_loop_threadstate} = PyEval_SaveThread();")
 
+        private_temps = []
         for entry, op in sorted(self.privates.items()):
             # Don't declare the index variable as a reduction
             if op and op in "+*-&^|" and entry != self.target.entry:
@@ -11098,8 +11114,22 @@ class ParallelRangeNode(ParallelStatNode):
                                 " reduction(%s:%s)" % (op, entry.cname))
             else:
                 if not entry.type.is_pyobject:
+                    # Shuffle owner around so "temp allocated" comment appears in the right place
+                    # (and doesn't break the OpenMP pragma).
+                    old_owner, code.funcstate.owner = code.funcstate.owner, preprivitization_insertion_point
+                    if entry.is_cpp_optional:
+                        # Just generate the correct looking code.
+                        dummy_type = PyrexTypes.CTypedefType(
+                            "dummy_cpp_optional_type", PyrexTypes.c_void_type,
+                            cname=entry.type.cpp_optional_declaration_code("*")
+                        )
+                        tmp = preprivitization_insertion_point.funcstate.allocate_temp(dummy_type, False)
+                    else:
+                        tmp = preprivitization_insertion_point.funcstate.allocate_temp(PyrexTypes.CPtrType(entry.type), False)
+                    code.funcstate.owner = old_owner
+                    preprivitization_insertion_point.putln(f"{tmp} = &{entry.cname};")
+                    private_temps.append((tmp, entry))
                     code.put(" firstprivate(%s)" % entry.cname)
-                    code.put(" lastprivate(%s)" % entry.cname)
 
         if self.schedule:
             if self.chunksize:
@@ -11149,6 +11179,8 @@ class ParallelRangeNode(ParallelStatNode):
             guard_around_body_codepoint.putln("if (%s < 2)" % Naming.parallel_why)
 
         code.end_block()  # end guard around loop body
+        if private_temps:
+            self._copy_out_privates(code, private_temps, fmt_dict)
         code.end_block()  # end for loop block
 
         if self.acquire_gil:
@@ -11165,6 +11197,9 @@ class ParallelRangeNode(ParallelStatNode):
             # Release the GIL and deallocate the thread state
             self.end_parallel_block(code)
             code.end_block()  # pragma omp parallel end block
+
+        for tmp, _ in private_temps:
+            code.funcstate.release_temp(tmp)
 
 
 class CnameDecoratorNode(StatNode):
