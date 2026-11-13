@@ -3,7 +3,7 @@ import os
 import tempfile
 from os.path import join as pjoin
 
-from ..Dependencies import extended_iglob
+from ..Dependencies import extended_iglob, parse_dependencies
 from ...TestUtils import TimedTest
 
 
@@ -131,3 +131,65 @@ class TestGlobbing(TimedTest):
         self.files_equal("**/*.{py}", all_files[1::2])
         self.files_equal("*/*/*.py", files[1::2])
         self.files_equal("**/*.py", all_files[1::2])
+
+
+class TestParseDependencies(TimedTest):
+    def cimports(self, source):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            filename = pjoin(tmpdir, "mod.pyx")
+            with writable_file(tmpdir, "mod.pyx") as f:
+                f.write(source)
+            cimports, _includes, _externs, _info = parse_dependencies(filename)
+        return sorted(cimports)
+
+    def test_from_cimport_single_line(self):
+        self.assertEqual(
+            self.cimports("from pkg cimport sub\n"),
+            ["pkg", "pkg.sub"])
+        self.assertEqual(
+            self.cimports("from pkg cimport sub1, sub2  # comment\n"),
+            ["pkg", "pkg.sub1", "pkg.sub2"])
+        self.assertEqual(
+            self.cimports("from pkg cimport sub as alias, other\n"),
+            ["pkg", "pkg.other", "pkg.sub"])
+
+    def test_from_cimport_does_not_read_the_next_line(self):
+        self.assertEqual(
+            self.cimports("from pkg cimport sub\nif True:\n    pass\n"),
+            ["pkg", "pkg.sub"])
+        self.assertEqual(
+            self.cimports("from pkg cimport *\nif True:\n    pass\n"),
+            ["pkg"])
+
+    def test_from_cimport_comments_in_parentheses(self):
+        self.assertEqual(
+            self.cimports("from pkg cimport (\n    sub1,  # one\n    sub2,  # two\n)\n"),
+            ["pkg", "pkg.sub1", "pkg.sub2"])
+        self.assertEqual(
+            self.cimports("from pkg cimport (  # leading comment\n    sub,\n)\n"),
+            ["pkg", "pkg.sub"])
+
+    def test_from_cimport_relative(self):
+        self.assertEqual(self.cimports("from . cimport sub\n"), [".", ".sub"])
+        self.assertEqual(self.cimports("from .. cimport sub\n"), ["..", "..sub"])
+        self.assertEqual(self.cimports("from .pkg cimport sub\n"), [".pkg", ".pkg.sub"])
+
+    def test_from_cimport_empty_parentheses(self):
+        self.assertEqual(self.cimports("from pkg cimport ()\n"), ["pkg"])
+
+    def test_from_cimport_does_not_fail_on_unrelated_parentheses(self):
+        self.assertEqual(
+            self.cimports("from pkg cimport sub\nif x:\n    ()\n"),
+            ["pkg", "pkg.sub"])
+
+    def test_from_cimport_long_run_of_spaces(self):
+        # Backtracks cubically if the regex has several adjacent quantifiers for spaces.
+        self.assertEqual(self.cimports("from pkg cimport " + " " * 1500 + ";\n"), ["pkg"])
+
+    def test_from_cimport_parenthesised(self):
+        self.assertEqual(
+            self.cimports("from pkg cimport (sub1, sub2)\n"),
+            ["pkg", "pkg.sub1", "pkg.sub2"])
+        self.assertEqual(
+            self.cimports("from pkg cimport (\n    sub1,\n    sub2,\n)\n"),
+            ["pkg", "pkg.sub1", "pkg.sub2"])

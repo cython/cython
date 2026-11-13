@@ -21,6 +21,11 @@ Features added
 Bugs fixed
 ----------
 
+* ``cythonize`` did not notice changes to ``pkg/sub.pxd`` after ``from pkg cimport sub``,
+  because the dependency was not recorded or a wrong module name was recorded instead,
+  e.g. for imports in parentheses or after ``from . cimport``.
+  (Github issue :issue:`8091`)
+
 * Returning the declared exception value without actually raising an exception
   now raises an exception instead of crashing.
   Patch by Vladimir Saraikin.  (Github issue :issue:`7857`)
