@@ -234,21 +234,17 @@ def test_prange_barrier_between_loops():
     >>> test_prange_barrier_between_loops()
     0
     """
-    # The loop targets have long names because the header of this file checks
-    # their clauses in the generated C code.
-    cdef int test_prange_barrier_between_loops_first_loop_target
-    cdef int test_prange_barrier_between_loops_last_loop_target
+    cdef int first_loop_target
+    cdef int last_loop_target
     cdef int k, n_stale = 0
     cdef int a[100]
     for k in range(100):
         a[k] = 0
     with nogil, cython.parallel.parallel(num_threads=4):
-        for test_prange_barrier_between_loops_first_loop_target in prange(
-                100, schedule='static'):
-            a[test_prange_barrier_between_loops_first_loop_target] = 1
-        for test_prange_barrier_between_loops_last_loop_target in prange(
-                100, schedule='static'):
-            if a[99 - test_prange_barrier_between_loops_last_loop_target] == 0:
+        for first_loop_target in prange(100, schedule='static'):
+            a[first_loop_target] = 1
+        for last_loop_target in prange(100, schedule='static'):
+            if a[99 - last_loop_target] == 0:
                 n_stale += 1
     return n_stale
 

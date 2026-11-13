@@ -11046,13 +11046,13 @@ class ParallelRangeNode(ParallelStatNode):
         self.release_closure_privates(code)
 
     def ends_parallel_block(self):
-        if not self.parent or self.parent.is_prange:
+        # The else clause runs after the loop and may read its variables.
+        if not self.parent or self.parent.is_prange or self.else_clause:
             return False
         stat = self.parent.body
         while isinstance(stat, StatListNode) and stat.stats:
             stat = stat.stats[-1]
-        # The else clause runs after the loop and may read its variables.
-        return stat is self and not self.else_clause
+        return stat is self
 
     def generate_loop(self, code, fmt_dict):
         if self.is_nested_prange:
