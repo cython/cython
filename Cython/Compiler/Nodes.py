@@ -11059,6 +11059,21 @@ class ParallelRangeNode(ParallelStatNode):
         code.putln("#endif")
 
 
+    def _write_gil_safe_barrier(self, code):
+        if self.acquire_gil:
+            code.putln("#ifdef _OPENMP")
+            code.putln(f"if (!{Naming.parallel_loop_threadstate}) {{")
+            code.putln(f"{Naming.parallel_loop_threadstate} = PyEval_SaveThread();")
+            code.putln("}")
+            # synchronization point for all loops at the end of the thread but without the GIL
+            code.putln("#pragma omp barrier")
+            code.putln(f"PyEval_RestoreThread({Naming.parallel_loop_threadstate});")
+            code.putln("#endif")
+        elif not self.is_nested_prange:
+            code.putln("#ifdef _OPENMP")
+            code.putln("#pragma omp barrier")
+            code.putln("#endif")
+
     def generate_loop(self, code, fmt_dict):
         preprivitization_insertion_point = code.insertion_point()
         if self.is_nested_prange:
@@ -11130,6 +11145,10 @@ class ParallelRangeNode(ParallelStatNode):
                     preprivitization_insertion_point.putln(f"{tmp} = &{entry.cname};")
                     private_temps.append((tmp, entry))
                     code.put(" firstprivate(%s)" % entry.cname)
+        if private_temps and self.parent and not self.is_nested_prange:
+            acquire_gil_deadlock_avoidance_point.putln("#ifdef _OPENMP")
+            acquire_gil_deadlock_avoidance_point.putln("#pragma omp barrier")
+            acquire_gil_deadlock_avoidance_point.putln("#endif")
 
         if self.schedule:
             if self.chunksize:
@@ -11183,16 +11202,8 @@ class ParallelRangeNode(ParallelStatNode):
             self._copy_out_privates(code, private_temps, fmt_dict)
         code.end_block()  # end for loop block
 
-        if self.acquire_gil:
-            code.putln("#ifdef _OPENMP")
-            code.putln(f"if (!{Naming.parallel_loop_threadstate}) {{")
-            code.putln(f"{Naming.parallel_loop_threadstate} = PyEval_SaveThread();")
-            code.putln("}")
-            # synchronization point for all loops at the end of the thread but without the GIL
-            code.putln("#pragma omp barrier")
-            code.putln(f"PyEval_RestoreThread({Naming.parallel_loop_threadstate});")
-            code.putln("#endif")
-
+        self._write_gil_safe_barrier(code)
+        
         if self.is_parallel:
             # Release the GIL and deallocate the thread state
             self.end_parallel_block(code)
