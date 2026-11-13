@@ -863,7 +863,29 @@ def test_pyview_of_memview(int[:] ints):
     >>> A = IntMockBuffer(None, [1, 2, 3])
     >>> len(test_pyview_of_memview(A))
     3
+
+    >>> writable = test_pyview_of_memview(A)
+    >>> list(test_pyview_of_memview(writable))
+    [1, 2, 3]
+
+    Views of read-only storage cannot be converted to writable views.
+    >>> A = IntMockBuffer(None, [1, 2, 3], writable=False)
+    >>> const = const_int_view(A)
+    >>> list(const_int_view(const))
+    [1, 2, 3]
+    >>> test_pyview_of_memview(const)
+    Traceback (most recent call last):
+        ...
+    ValueError: Cannot create writable memory view from read-only memoryview
+    >>> test_pyview_of_memview(const[::2])
+    Traceback (most recent call last):
+        ...
+    ValueError: Cannot create writable memory view from read-only memoryview
     """
+    return ints
+
+
+def const_int_view(const int[:] ints):
     return ints
 
 
@@ -1451,5 +1473,5 @@ def test_double_sliced_assignment(ExtClass ec):
 
 _PERFORMANCE_HINTS = """
 243:9: Use boundscheck(False) for faster access
-1436:21: Index should be typed for more efficient access
+1458:21: Index should be typed for more efficient access
 """

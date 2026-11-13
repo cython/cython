@@ -156,6 +156,7 @@ def close_listing_file():
     if threadlocal.cython_errors_listing_file:
         threadlocal.cython_errors_listing_file.close()
         threadlocal.cython_errors_listing_file = None
+    threadlocal.cython_errors_echo_file = None
 
 def report_error(err, use_stack=True):
     error_stack = threadlocal.cython_errors_stack

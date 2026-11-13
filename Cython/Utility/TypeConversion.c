@@ -1424,7 +1424,8 @@ static {{TYPE}} __Pyx_LargePyLong_{{FROM_PY_FUNCTION}}(PyObject *x) {
     PyErr_SetString(PyExc_RuntimeError,
                     "_PyLong_AsByteArray() or PyLong_AsNativeBytes() not available, cannot convert large enums");
     val = ({{TYPE}}) -1;
-    // Avoid unused label warning.
+    // Avoid unused variable and label warnings.
+    (void) is_unsigned;
     if ((0)) goto raise_overflow;
 {{else}}
 // Inefficient copy of bit chunks through the C-API.  Probably still better than a "cannot do this" exception.
