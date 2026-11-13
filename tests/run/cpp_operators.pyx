@@ -21,6 +21,20 @@ cdef iout(int s, result_type=None):
 
 
 cdef extern from "cpp_operators_helper.h" nogil:
+    cdef cppclass InplaceOps:
+        int value
+        InplaceOps()
+        InplaceOps& operator+=(int)
+        InplaceOps& operator-=(int)
+        InplaceOps& operator*=(int)
+        InplaceOps& operator/=(int)
+        InplaceOps& operator%=(int)
+        InplaceOps& operator^=(int)
+        InplaceOps& operator&=(int)
+        InplaceOps& operator|=(int)
+        InplaceOps& operator>>=(int)
+        InplaceOps& operator<<=(int)
+
     cdef cppclass TestOps:
 
         const_char* operator+() except +
@@ -67,12 +81,6 @@ cdef extern from "cpp_operators_helper.h" nogil:
         const_char* operator<=(int)
         const_char* operator>(int)
         const_char* operator<(int)
-
-        const char* operator+=(int)
-        const char* operator-=(int)
-        const char* operator*=(int)
-        const char* operator/=(int)
-        const char* operator%=(int)
 
         const_char* operator[](int) except +
         const_char* operator()(int) except +
@@ -138,12 +146,6 @@ cdef extern from "cpp_operators_helper.h" nogil:
         int& operator<=(int) except +
         int& operator>(int) except +
         int& operator<(int) except +
-
-        int& operator+=(int) except +
-        int& operator-=(int) except +
-        int& operator*=(int) except +
-        int& operator/=(int) except +
-        int& operator%=(int) except +
 
         int& operator[](int) except +
         int& operator()(int) except +
@@ -228,6 +230,33 @@ def test_binop():
     x = cython.operator.comma(t[0], 1)
     out(x, typeof(x))
     del t
+
+def test_inplace_operators():
+    """
+    >>> test_inplace_operators()
+    """
+    cdef InplaceOps value
+    value.value = 6
+    value += 2
+    assert value.value == 8
+    value -= 3
+    assert value.value == 5
+    value *= 2
+    assert value.value == 10
+    value /= 2
+    assert value.value == 5
+    value %= 3
+    assert value.value == 2
+    value |= 8
+    assert value.value == 10
+    value &= 7
+    assert value.value == 2
+    value ^= 3
+    assert value.value == 1
+    value <<= 2
+    assert value.value == 4
+    value >>= 1
+    assert value.value == 2
 
 def test_nonmember_binop():
     """
