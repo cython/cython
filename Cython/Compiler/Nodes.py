@@ -952,10 +952,7 @@ class CQualifierDeclaratorNode(CDeclaratorNode):
         if base_type.is_pyobject:
             error(self.pos,
                   "Const/restrict base type cannot be a Python object")
-        const = PyrexTypes.c_restrict_type(
-            PyrexTypes.c_qualifier_type(base_type, is_const=self.is_const),
-            is_restrict=self.is_restrict
-        )
+        const = PyrexTypes.c_qualifier_type(base_type, is_const=self.is_const, is_restrict=self.is_restrict)
         return self.base.analyse(const, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
 
 

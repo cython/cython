@@ -1,5 +1,5 @@
 # mode: error
-# tag: warnings
+# tag: warnings, restrict
 
 cdef const int x = 10
 x = 20           # nok
@@ -106,6 +106,17 @@ cdef const_array():
 cdef int *restrict bar(int *restrict a):
     pass
 
+ctypedef double* double_ptr
+
+cdef void ok_ptr_typedef(double_ptr restrict p):
+    pass
+
+cdef void bad_int(int restrict x):
+    pass
+
+cdef void bad_object(object restrict o):
+    pass
+
 _ERRORS = """
 5:4: Assignment to const 'x'
 10:0: Assignment to const 'i'
@@ -161,6 +172,9 @@ _ERRORS = """
 104:4: Assignment to const 'int_not_list_var'
 104:38: Cannot coerce list to type 'const int'
 106:10: Restrict qualifier cannot be applied to function type
+114:22: Restrict qualifier can only be applied to pointer or memoryview types
+117:28: Const/restrict base type cannot be a Python object
+117:28: Restrict qualifier can only be applied to pointer or memoryview types
 """
 
 _WARNINGS = """
