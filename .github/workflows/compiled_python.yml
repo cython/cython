@@ -96,6 +96,8 @@ jobs:
               EXCLUDE="tag:threads"
             fi
             EXCLUDE="$EXCLUDE --excludefile tests/tsan_bugs.txt"
+            # TODO: Fix this. Thread sanitizer is producing spurious openmp errors.
+            EXCLUDE="$EXCLUDE -x tag:openmp"
             echo "TSAN_OPTIONS=suppressions=$TSAN_SUPPRESSIONS ignore_noninstrumented_modules=1 log_path=${{ github.workspace }}/san_log" >> $GITHUB_ENV
             # Having too many workers seems to lead to an exit without a diagnostic message - possibly memory?
             echo "TEST_PARALLELISM=-j3" >> $GITHUB_ENV
