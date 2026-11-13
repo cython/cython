@@ -35,7 +35,7 @@ jobs:
           github.ref_type == 'tag' ||
           steps.filter.outputs.positive-files == 'true' ||
           (steps.filter.outputs.any-files == 'true' &&
-            (steps.filter.outputs.negative-files_count < steps.filter.outputs.any-files_count))
+            (fromJSON(steps.filter.outputs.negative-files_count) < fromJSON(steps.filter.outputs.any-files_count)))
         }}
     steps:
     - name: Checkout
