@@ -3,6 +3,8 @@
 # cython: test_assert_c_code_has = CYTHON_UNUSED char \*CYTHON_RESTRICT __pyx_dp_v_y
 # cython: test_assert_c_code_has = static CYTHON_FORCE_INLINE void __pyx_ri_f_16memview_restrict_saxpy\(
 # cython: test_assert_c_code_has = __pyx_dp_v_plain_arg = __pyx_v_plain_arg.data;
+# cython: test_assert_c_code_has = char \*CYTHON_RESTRICT __pyx_dp_v_va_arr;
+# cython: test_assert_c_code_has = __pyx_dp_v_va_arr = __pyx_v_va_arr.data;
 
 cimport cython
 
@@ -139,6 +141,26 @@ def test_opt_args(values=(1.0,)):
     """
     a = array('d', values)
     return opt_args(a), opt_args(a, 3.0)
+
+
+cdef double varargs_sum(double[::1] restrict va_arr, int n, ...) noexcept:
+    # The body of a varargs function cannot be moved into a separate inline function,
+    # so the restrict data pointer is declared as a local variable instead.
+    cdef double s = 0
+    cdef Py_ssize_t i
+    for i in range(n):
+        s += va_arr[i]
+    return s
+
+
+def test_varargs():
+    """
+    >>> test_varargs()
+    (3.0, 6.0)
+    """
+    a = array('d', [1.0, 2.0, 3.0])
+    cdef int extra = 5
+    return varargs_sum(a, 2), varargs_sum(a, 3, extra)
 
 
 cpdef double cpdef_function(double[::1] restrict a, double[::1] restrict b):
