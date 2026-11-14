@@ -2495,13 +2495,11 @@ if VALUE is not None:
                     error(node.pos, "Cannot nest fused functions")
 
             self.fused_error_funcs.add(self.fused_function)
+            return self._stub_fused_function(node)
 
-            node.body = Nodes.PassStatNode(node.pos)
-            for arg in node.args:
-                if arg.type.is_fused:
-                    arg.type = arg.type.get_fused_types()[0]
-
-            return node
+        if node.entry.is_special:
+            error(node.pos, "Fused types are not supported in special methods")
+            return self._stub_fused_function(node)
 
         decorators = getattr(node, 'decorators', None)
         node = FusedNode.FusedCFuncDefNode(node, env)
@@ -2513,6 +2511,14 @@ if VALUE is not None:
         if node.py_func:
             node = self._handle_def(decorators, env, node)
 
+        return node
+
+    def _stub_fused_function(self, node):
+        "Replace a rejected fused function with an empty body on its first specialisation"
+        node.body = Nodes.PassStatNode(node.pos)
+        for arg in node.args:
+            if arg.type.is_fused:
+                arg.type = arg.type.get_fused_types()[0]
         return node
 
     def _handle_fused(self, node):
