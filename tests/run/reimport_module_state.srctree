@@ -15,7 +15,7 @@ setup(
 
 ######## demo.pyx ########
 
-# distutils: extra_compile_args = -DCYTHON_USE_MODULE_STATE=1
+# distutils: define_macros = CYTHON_USE_MODULE_STATE=1
 
 cdef extern from *:
     enum:

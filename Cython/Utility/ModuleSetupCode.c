@@ -1593,12 +1593,15 @@ if (likely(__Pyx_init_co_variables() == 0 && __Pyx_init_tpflags_variables() == 0
 
 #ifndef CYTHON_NO_PYINIT_EXPORT
   #define __Pyx_PyMODINIT_FUNC PyMODINIT_FUNC
+  #define __Pyx_PyMODEXPORT_FUNC PyMODEXPORT_FUNC
 #else
   // define this to PyObject * manually because PyMODINIT_FUNC adds __declspec(dllexport) to it's definition.
   #ifdef __cplusplus
   #define __Pyx_PyMODINIT_FUNC extern "C" PyObject *
+  #define __Pyx_PyMODEXPORT_FUNC extern "C" PyModuleDef_Slot*
   #else
   #define __Pyx_PyMODINIT_FUNC PyObject *
+  #define __Pyx_PyMODEXPORT_FUNC PyModuleDef_Slot*
   #endif
 #endif
 
@@ -1799,11 +1802,14 @@ static CYTHON_SMALL_CODE PyObject* ${pymodule_create_func_cname}(PyObject *spec,
     #endif
     if (${module_cname}) {
     #if CYTHON_USE_MODULE_STATE
-        // CPython resets md_state of the module that Py_mod_create returns,
+        // CPython resets mod_state of the module that Py_mod_create returns,
         // so handing back the live module would wipe its state.
         PyErr_Format(PyExc_ImportError,
-            "Module '%s' has already been imported into this interpreter. Re-importing it is not supported.",
-            def->m_name);
+            "Module %s%s%shas already been imported into this interpreter. Re-importing it is not supported.",
+            // With PEP793 def may be NULL.
+            def ? "'" : "",
+            def ? def->m_name : "",
+            def ? "' " : "");
         return NULL;
     #else
         return __Pyx_NewRef(${module_cname});
