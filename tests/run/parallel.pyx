@@ -227,5 +227,56 @@ def test_parallel_call_exception_checked_function():
         free(buf)
 
 
+def test_prange_barrier_between_loops():
+    """
+    Only the loop followed by code in the block keeps its end barrier.
+
+    >>> test_prange_barrier_between_loops()
+    0
+    """
+    cdef int first_loop_target
+    cdef int last_loop_target
+    cdef int k, n_stale = 0
+    cdef int a[100]
+    for k in range(100):
+        a[k] = 0
+    with nogil, cython.parallel.parallel(num_threads=4):
+        for first_loop_target in prange(100, schedule='static'):
+            a[first_loop_target] = 1
+        for last_loop_target in prange(100, schedule='static'):
+            if a[99 - last_loop_target] == 0:
+                n_stale += 1
+    return n_stale
+
+
+def test_prange_else_ends_block():
+    """
+    The else clause of the last loop of a block runs after all its iterations.
+
+    >>> test_prange_else_ends_block()
+    0
+    """
+    cdef int i, j, k, work
+    cdef int n_stale = 0
+    cdef int *n_stale_ptr = &n_stale
+    cdef int a[100]
+    for k in range(100):
+        a[k] = 0
+    with nogil, cython.parallel.parallel(num_threads=4):
+        for i in prange(100, schedule='static'):
+            # Make the last iterations slow, so that threads which are done
+            # reach the else clause first.
+            work = 0
+            if i >= 75:
+                for j in range(1000000):
+                    work = (work * 31 + j) % 7
+            a[i] = 1 + (work == 3)
+        else:
+            for k in range(100):
+                if a[k] == 0:
+                    n_stale_ptr[0] = 1
+    return n_stale
+
+
 OPENMP_PARALLEL = True
 include "sequential_parallel.pyx"

@@ -11045,6 +11045,15 @@ class ParallelRangeNode(ParallelStatNode):
 
         self.release_closure_privates(code)
 
+    def ends_parallel_block(self):
+        # The else clause runs after the loop and may read its variables.
+        if not self.parent or self.parent.is_prange or self.else_clause:
+            return False
+        stat = self.parent.body
+        while isinstance(stat, StatListNode) and stat.stats:
+            stat = stat.stats[-1]
+        return stat is self
+
     def generate_loop(self, code, fmt_dict):
         if self.is_nested_prange:
             code.putln("#if 0")
@@ -11052,6 +11061,8 @@ class ParallelRangeNode(ParallelStatNode):
             code.putln("#ifdef _OPENMP")
 
         if not self.is_parallel:
+            # The loop never waits at its end. When code follows it in a parallel
+            # block, an explicit barrier is put after the loop (see below).
             acquire_gil_deadlock_avoidance_point = code.insertion_point()
             code.put("#pragma omp for nowait")
             self.privatization_insertion_point = code.insertion_point()
@@ -11077,6 +11088,8 @@ class ParallelRangeNode(ParallelStatNode):
             else:
                 code.putln("#ifdef _OPENMP")
             acquire_gil_deadlock_avoidance_point = code.insertion_point()
+            # The end of the parallel region follows, so the loop needs no
+            # barrier of its own.
             code.put("#pragma omp for nowait")
 
         if self.acquire_gil:
@@ -11159,6 +11172,14 @@ class ParallelRangeNode(ParallelStatNode):
             # synchronization point for all loops at the end of the thread but without the GIL
             code.putln("#pragma omp barrier")
             code.putln(f"PyEval_RestoreThread({Naming.parallel_loop_threadstate});")
+            code.putln("#endif")
+        elif not (self.is_parallel or self.is_nested_prange or self.ends_parallel_block()):
+            # Code after a prange in a parallel block must see all of its iterations.
+            # A "parallel for" or the last statement of a parallel block needs no
+            # barrier, the end of the parallel region follows. In a nested prange,
+            # the barrier would end up inside the outer loop.
+            code.putln("#ifdef _OPENMP")
+            code.putln("#pragma omp barrier")
             code.putln("#endif")
 
         if self.is_parallel:
