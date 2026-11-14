@@ -244,6 +244,34 @@ def bytes_decode(bytes s, start=None, stop=None):
         return s[start:stop].decode('utf8')
 
 
+@cython.test_fail_if_path_exists(
+    "//SimpleCallNode",
+    "//PythonCapiCallNode")
+def bytes_literal_decode():
+    """
+    >>> for s in bytes_literal_decode(): print(s)
+    abc
+    abc
+    abc
+    ac
+    """
+    return (
+        b'abc'.decode(),
+        b'abc'.decode('utf8'),
+        b'abc'.decode('ascii', 'strict'),
+        b'a\xffc'.decode('ascii', 'ignore'),
+    )
+
+
+def bytes_literal_decode_error():
+    """
+    >>> bytes_literal_decode_error()  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 1: invalid start byte
+    """
+    return b'a\xffc'.decode()
+
+
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode")
 @cython.test_fail_if_path_exists(
