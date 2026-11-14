@@ -25,4 +25,4 @@ def sanity_check_contents():
     except AttributeError:
         pass  # good - it doesn't exist
     else:
-        raise RuntimeError("PyModExport_explicit_multi_phase found") 
+        raise RuntimeError("PyModExport_explicit_multi_phase found")
