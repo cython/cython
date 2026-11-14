@@ -49,9 +49,13 @@ jobs:
               # Python uses clang-17 instead of 18 because of bugs so do the same
               CC=clang-17
               CXX=clang-17
+              sudo apt-get install -y -q libomp-17-dev || exit 1
+          else
+              sudo apt-get install -y -q libomp-dev || exit 1
           fi
           echo "CC=$CC" >> $GITHUB_ENV
           echo "CXX=$CXX" >> $GITHUB_ENV
+          echo "CONFIGURE_CC_ARG=CC=$CC" >> $GITHUB_ENV
 
       - name: Set up sanitizer args
         if: ${{inputs.sanitize}}
@@ -60,6 +64,8 @@ jobs:
           CONFIGURE_ARGS=""
           EXTRA_CONFIGURE_CFLAGS=""
           EXCLUDE="run[.] memoryview[.] --no-examples"
+          # TODO: Fix this. Blocks indefinitely on clang (https://github.com/cython/cython/issues/8129).
+          EXCLUDE="$EXCLUDE -x parallel_with_gil"
           if [[ "${{inputs.sanitize}}" == *"address"* ]]; then
             CONFIGURE_ARGS="$CONFIGURE_ARGS --with-address-sanitizer --without-pymalloc"
             SANITIZER_CFLAGS="$SANITIZER_CFLAGS -fsanitize=address"
@@ -96,9 +102,11 @@ jobs:
               EXCLUDE="tag:threads"
             fi
             EXCLUDE="$EXCLUDE --excludefile tests/tsan_bugs.txt"
-            # TODO: Fix this. Thread sanitizer is producing spurious openmp errors.
+            # TODO: Fix this. Currently our OpenMP code is producing thread sanitizer warnings.
             EXCLUDE="$EXCLUDE -x tag:openmp"
             echo "TSAN_OPTIONS=suppressions=$TSAN_SUPPRESSIONS ignore_noninstrumented_modules=1 log_path=${{ github.workspace }}/san_log" >> $GITHUB_ENV
+
+            echo "OMP_TOOL_LIBRARIES=$(realpath "$(clang -print-file-name=libarcher.so)")" >> $GITHUB_ENV
             # Having too many workers seems to lead to an exit without a diagnostic message - possibly memory?
             echo "TEST_PARALLELISM=-j3" >> $GITHUB_ENV
           fi
@@ -122,7 +130,7 @@ jobs:
         run: |
           git clone --branch main --depth 1 https://github.com/python/cpython/ cpython_main
           cd cpython_main
-          ./configure ${CONFIGURE_ARGS} --prefix=${GITHUB_WORKSPACE}/cpython_install CFLAGS="-O2 $EXTRA_CONFIGURE_CFLAGS"
+          ./configure ${CONFIGURE_ARGS} --prefix=${GITHUB_WORKSPACE}/cpython_install ${CONFIGURE_CC_ARG} CFLAGS="-O2 $EXTRA_CONFIGURE_CFLAGS"
           make -j8
           make install
           ${GITHUB_WORKSPACE}/cpython_install/bin/python3 -m venv ${GITHUB_WORKSPACE}/venv_pydebug
