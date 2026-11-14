@@ -162,6 +162,41 @@ public:
     this->val -= 1;
     return t;
   }
+  wrapped_int operator+=(wrapped_int &other) {
+    if (other.val == 4) {
+      throw std::invalid_argument("tried to add 4");
+    }
+    this->val += other.val;
+    return *this;
+  }
+  wrapped_int operator-=(wrapped_int &other) {
+    if (other.val == 4) {
+      throw std::invalid_argument("tried to add 4");
+    }
+    this->val -= other.val;
+    return *this;
+  }
+  wrapped_int operator*=(wrapped_int &other) {
+    if (other.val == 4) {
+      throw std::invalid_argument("tried to add 4");
+    }
+    this->val *= other.val;
+    return *this;
+  }
+  wrapped_int operator/=(wrapped_int &other) {
+    if (other.val == 4) {
+      throw std::invalid_argument("tried to add 4");
+    }
+    this->val /= other.val;
+    return *this;
+  }
+  wrapped_int operator%=(wrapped_int &other) {
+    if (other.val == 4) {
+      throw std::invalid_argument("tried to add 4");
+    }
+    this->val %= other.val;
+    return *this;
+  }
   wrapped_int operator!() {
     if (this->val == 4) {
       throw std::out_of_range("Can't negate 4!");

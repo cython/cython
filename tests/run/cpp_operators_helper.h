@@ -6,6 +6,24 @@
 
 #define COMMA ,
 
+class InplaceOps {
+public:
+    int value;
+
+    InplaceOps() : value(0) {}
+
+    InplaceOps& operator+=(int rhs) { value += rhs; return *this; }
+    InplaceOps& operator-=(int rhs) { value -= rhs; return *this; }
+    InplaceOps& operator*=(int rhs) { value *= rhs; return *this; }
+    InplaceOps& operator/=(int rhs) { value /= rhs; return *this; }
+    InplaceOps& operator%=(int rhs) { value %= rhs; return *this; }
+    InplaceOps& operator^=(int rhs) { value ^= rhs; return *this; }
+    InplaceOps& operator&=(int rhs) { value &= rhs; return *this; }
+    InplaceOps& operator|=(int rhs) { value |= rhs; return *this; }
+    InplaceOps& operator>>=(int rhs) { value >>= rhs; return *this; }
+    InplaceOps& operator<<=(int rhs) { value <<= rhs; return *this; }
+};
+
 class TestOps {
 
 public:
