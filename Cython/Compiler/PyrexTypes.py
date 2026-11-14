@@ -182,7 +182,7 @@ class PyrexType(BaseType):
     #  is_rvalue_reference   boolean     Is a C++ rvalue reference type
     #  is_const              boolean     Is a C const type
     #  is_volatile           boolean     Is a C volatile type
-    #  is_cv_qualified       boolean     Is a C const or volatile type
+    #  is_cv_qualified       boolean     Is a C const, restrict or volatile type
     #  is_cfunction          boolean     Is a C function type
     #  is_struct_or_union    boolean     Is a C struct or union type
     #  is_struct             boolean     Is a C struct type
@@ -946,7 +946,11 @@ class MemoryViewSliceType(PyrexType):
             type = node.type
 
         entry = Symtab.Entry(cname, cname, type, node.pos)
-        return MemoryView.MemoryViewSliceBufferEntry(entry)
+        # Use the hoisted data pointer of an argument if available (see FuncDefNode).
+        data_entry = getattr(node, 'entry', None)
+        if data_entry is not None and data_entry.memview_data_cname is None:
+            data_entry = None
+        return MemoryView.MemoryViewSliceBufferEntry(entry, data_entry=data_entry)
 
     def conforms_to(self, dst, broadcast=False, copying=False):
         """
@@ -2321,7 +2325,7 @@ class CQualifierType(BaseType):
             cvstring = "const " + cvstring
         if self.is_volatile:
             cvstring = "volatile " + cvstring
-        if self.is_restrict:
+        if self.is_restrict and not self.cv_base_type.is_memoryviewslice:
             cvstring = "restrict " if for_display else "CYTHON_RESTRICT " + cvstring
 
         return cvstring
@@ -2382,6 +2386,10 @@ def c_const_type(base_type, is_const: bool = True):
     """
     return CQualifierType(base_type, is_const=is_const)
 
+def c_restrict_type(base_type, is_restrict: bool = True):
+    """Creates a C 'restrict ...' type but does not test for 'error_type'.
+    """
+    return CQualifierType(base_type, is_restrict=is_restrict)
 
 class FusedType(CType):
     """
@@ -4327,7 +4335,8 @@ class CFuncTypeArg(BaseType):
         return self.type.declaration_code(self.cname, for_display)
 
     def specialize(self, values):
-        return CFuncTypeArg(self.name, self.type.specialize(values), self.pos, self.cname)
+        arg = CFuncTypeArg(self.name, self.type.specialize(values), self.pos, self.cname)
+        return arg
 
     def is_forwarding_reference(self):
         if self.type.is_rvalue_reference:

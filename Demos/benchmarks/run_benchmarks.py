@@ -26,7 +26,8 @@ PROCESSED_BENCHMARKS = frozenset({
 })
 
 BENCHMARK_MIN_VERSIONS = {
-    "bm_patma": (3, 3)
+    "bm_patma": (3, 3),
+    "bm_memview_restrict": (3, 5),
 }
 
 LIMITED_API_VERSION = max((3, 12), sys.version_info[:2])
