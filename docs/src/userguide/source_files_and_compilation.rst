@@ -1051,7 +1051,8 @@ most important to least important:
     Uses multi-phase module initialization as described in :pep:`489`.  This improves
     Python compatibility, especially when running the initial import of the code when it
     makes attributes such as ``__file__`` available.  It is therefore on by default
-    where supported.
+    where supported.  The special value ``CYTHON_PEP489_MULTI_PHASE_INIT == 2`` uses
+    multi-phase init but not the Python 3.15+ ``PyModExport`` functions.
 
 ``CYTHON_USE_MODULE_STATE``
     Stores module data on a struct associated with the module object rather than as

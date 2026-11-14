@@ -3206,7 +3206,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         header_modexport = f"__Pyx_PyMODEXPORT_FUNC {self.mod_init_func_cname('PyModExport', env)}(void)"
         # Optimise for small code size as the module init function is only executed once.
         code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1 "
-                   "&& CYTHON_PEP489_MULTI_PHASE_INIT")
+                   "&& CYTHON_PEP489_MULTI_PHASE_INIT == 1")
         code.putln(f"{header_modexport} CYTHON_SMALL_CODE; /*proto*/")
         code.putln("#endif")
         # Always define PyInit_ (even with PEP 793) mainly because setuptools on Windows will
@@ -3240,7 +3240,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("return PyModuleDef_Init(&%s);" % Naming.pymoduledef_cname)
         code.putln("#endif")
         code.putln("}")
-        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1")
+        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1 "
+                   "&& CYTHON_PEP489_MULTI_PHASE_INIT == 1")
         code.putln(header_modexport)
         code.putln("{")
         code.putln(f"return {Naming.module_pyslots_cname};")
@@ -3783,7 +3784,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("};")
 
         # PEP 803 and 793 initialization
-        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1")
+        code.putln("#if __PYX_LIMITED_VERSION_HEX >= 0x030F0000 && PY_VERSION_HEX >= 0x030F00B1"
+                   "&& CYTHON_PEP489_MULTI_PHASE_INIT == 1")
         code.putln(f"PyABIInfo_VAR({Naming.pyrex_prefix}abi_info);")
         code.putln(f"static PySlot {Naming.module_pyslots_cname}[] = {{")
         code.putln(f"PySlot_PTR_STATIC(Py_mod_name, {env.module_name.as_c_string_literal()}),")
