@@ -98,36 +98,36 @@ cdef MyObject my_obj3 = u"abc"
 
 
 _ERRORS = u"""
-36:20: Unicode literals do not support coercion to C types other than Py_UCS4/Py_UNICODE (for characters), Py_UNICODE* (for strings) or char*/void* (for auto-encoded strings).
-37:20: Unicode objects only support coercion to Py_UNICODE*.
+37:20: Unicode literals do not support coercion to C types other than Py_UCS4/Py_UNICODE (for characters), Py_UNICODE* (for strings) or char*/void* (for auto-encoded strings).
 38:20: Unicode objects only support coercion to Py_UNICODE*.
+39:20: Unicode objects only support coercion to Py_UNICODE*.
 
-40:25: Cannot assign type 'char *' to 'Py_UNICODE *'
-41:25: Cannot convert 'bytes' object to Py_UNICODE*, use 'str'.
-43:25: Cannot convert 'bytes' object to Py_UNICODE*, use 'str'.
+41:25: Cannot assign type 'char *' to 'Py_UNICODE *'
+42:25: Cannot convert 'bytes' object to Py_UNICODE*, use 'str'.
+44:25: Cannot convert 'bytes' object to Py_UNICODE*, use 'str'.
 
-45:20: Cannot convert Unicode string to 'bytes' implicitly, encoding required.
 46:20: Cannot convert Unicode string to 'bytes' implicitly, encoding required.
 47:20: Cannot convert Unicode string to 'bytes' implicitly, encoding required.
 48:20: Cannot convert Unicode string to 'bytes' implicitly, encoding required.
+49:20: Cannot convert Unicode string to 'bytes' implicitly, encoding required.
 
-50:17: Cannot convert 'bytes' object to str implicitly, decoding required
 51:17: Cannot convert 'bytes' object to str implicitly, decoding required
+52:17: Cannot convert 'bytes' object to str implicitly, decoding required
 
-57:20: Cannot convert 'bytes' object to str implicitly, decoding required
 58:20: Cannot convert 'bytes' object to str implicitly, decoding required
-59:20: Cannot convert 'char*' to unicode implicitly, decoding required
+59:20: Cannot convert 'bytes' object to str implicitly, decoding required
+60:20: Cannot convert 'char*' to unicode implicitly, decoding required
 
-61:24: Cannot convert 'bytes' object to str implicitly, decoding required
 62:24: Cannot convert 'bytes' object to str implicitly, decoding required
+63:24: Cannot convert 'bytes' object to str implicitly, decoding required
 
-64:19: Cannot assign type 'str object' to 'tuple object'
-65:18: Cannot assign type 'str object' to 'tuple object'
-66:18: Cannot assign type 'bytes object' to 'tuple object'
+65:19: Cannot assign type 'str object' to 'tuple object'
+66:18: Cannot assign type 'str object' to 'tuple object'
+67:18: Cannot assign type 'bytes object' to 'tuple object'
 
-72:11: Cannot convert 'char*' to unicode implicitly, decoding required
-73:13: default encoding required for conversion from 'char *' to 'str object'
-74:15: Cannot convert 'char*' to unicode implicitly, decoding required
-75:17: default encoding required for conversion from 'char *' to 'str object'
-77:20: Unicode literals do not support coercion to C types other than Py_UCS4/Py_UNICODE (for characters), Py_UNICODE* (for strings) or char*/void* (for auto-encoded strings).
+73:11: Cannot convert 'char*' to unicode implicitly, decoding required
+74:13: default encoding required for conversion from 'char *' to 'str object'
+75:15: Cannot convert 'char*' to unicode implicitly, decoding required
+76:17: default encoding required for conversion from 'char *' to 'str object'
+78:20: Unicode literals do not support coercion to C types other than Py_UCS4/Py_UNICODE (for characters), Py_UNICODE* (for strings) or char*/void* (for auto-encoded strings).
 """
