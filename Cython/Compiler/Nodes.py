@@ -1095,10 +1095,20 @@ class CArgDeclNode(Node):
             self.type_from_annotation = True
         return arg_type
 
+    def _default_is_c_constant(self):
+        default = self.default
+        # Extern const declarations can be read-only views of mutable storage.
+        return default.is_literal or (
+            default.is_name and (
+                default.entry.is_const or (
+                    default.type.is_const and default.type.is_numeric and not default.type.is_volatile
+                    and default.entry.is_cglobal
+                    and default.entry.visibility != 'extern')))
+
     def calculate_default_value_code(self, code):
         if self.default_value is None:
             if self.default:
-                if self.default.is_literal:
+                if self._default_is_c_constant():
                     # will not output any code, just assign the result_code
                     self.default.generate_evaluation_code(code)
                     return self.type.cast_code(self.default.result())
@@ -1112,7 +1122,7 @@ class CArgDeclNode(Node):
     def generate_assignment_code(self, code, overloaded_assignment=False,
                                  cyfunc_struct_target=None):
         default = self.default
-        if default is None or (default.is_literal and cyfunc_struct_target is None):
+        if default is None or (self._default_is_c_constant() and cyfunc_struct_target is None):
             return
         # Note that even if self.is_dynamic, default may be a literal if it's been
         # optimized into a literal after analyse_expressions

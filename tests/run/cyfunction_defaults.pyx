@@ -4,6 +4,123 @@
 
 cimport cython
 
+cimport libc.stdlib as stdlib
+cimport libc.limits as limits
+
+
+cdef enum DefaultMode:
+    DEFAULT_MODE = 3
+    OTHER_MODE = 7
+
+
+cdef int enum_default(DefaultMode mode=DEFAULT_MODE) noexcept nogil:
+    return mode
+
+
+cdef int int_enum_default(int mode=DEFAULT_MODE) noexcept nogil:
+    return mode
+
+
+cdef int imported_enum_default(int mode=stdlib.EXIT_SUCCESS) noexcept nogil:
+    return mode
+
+
+cdef int qualified_enum_default(DefaultMode mode=DefaultMode.DEFAULT_MODE) noexcept nogil:
+    return mode
+
+
+def test_nogil_enum_defaults():
+    """
+    >>> test_nogil_enum_defaults()
+    (3, 7, 3, True, 3)
+    """
+    cdef int default_result, explicit_result, int_result, imported_result, qualified_result
+    with nogil:
+        default_result = enum_default()
+        explicit_result = enum_default(OTHER_MODE)
+        int_result = int_enum_default()
+        imported_result = imported_enum_default()
+        qualified_result = qualified_enum_default()
+    return default_result, explicit_result, int_result, imported_result == stdlib.EXIT_SUCCESS, qualified_result
+
+
+cpdef enum PublicDefaultMode:
+    PUBLIC_DEFAULT_MODE = 11
+
+
+cdef int cpdef_enum_default(PublicDefaultMode mode=PublicDefaultMode.PUBLIC_DEFAULT_MODE) noexcept nogil:
+    return mode
+
+
+DEF COMPILE_TIME_DEFAULT = 13
+
+
+cdef int def_constant_default(int value=COMPILE_TIME_DEFAULT) noexcept nogil:
+    return value
+
+
+cdef const int CONST_DEFAULT_VALUE = 17
+
+
+cdef int const_qualified_default(int value=CONST_DEFAULT_VALUE) noexcept nogil:
+    return value
+
+
+cdef int imported_const_default(int value=limits.CHAR_BIT) noexcept nogil:
+    return value
+
+
+cdef extern from *:
+    """
+    static volatile int changing_default = 17;
+    static int changing_const_default = 17;
+    static void change_default(int value) {
+        changing_default = value;
+        changing_const_default = value;
+    }
+    """
+    const volatile int changing_default
+    const int changing_const_default
+    void change_default(int value)
+
+
+cdef int volatile_default(int value=changing_default):
+    return value
+
+
+cdef int external_const_default(int value=changing_const_default):
+    return value
+
+
+def test_external_const_default_snapshots():
+    """
+    >>> test_external_const_default_snapshots()
+    (17, 17, 29)
+    """
+    change_default(23)
+    try:
+        return volatile_default(), external_const_default(), volatile_default(29)
+    finally:
+        change_default(17)
+
+
+cdef object builtin_default(object value=abs):
+    return value
+
+
+def test_other_constant_defaults():
+    """
+    >>> test_other_constant_defaults()
+    (11, 13, 17, True, True)
+    """
+    cdef int public_result, def_result, const_result, imported_const_result
+    with nogil:
+        public_result = cpdef_enum_default()
+        def_result = def_constant_default()
+        const_result = const_qualified_default()
+    imported_const_result = imported_const_default()
+    return public_result, def_result, const_result, imported_const_result == limits.CHAR_BIT, builtin_default() is abs
+
 
 def get_defaults(func):
     return func.__defaults__
