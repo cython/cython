@@ -25,10 +25,12 @@ py_library(
 py_binary(
     name = "cython_binary",
     srcs = ["cython.py"],
+    legacy_create_init = 0,
     main = "cython.py",
     visibility = ["//visibility:public"],
     deps = ["cython_lib"],
 )
+
 alias(
     name = "cython",
     actual = ":cython_binary",
