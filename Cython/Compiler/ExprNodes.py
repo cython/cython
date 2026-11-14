@@ -8033,8 +8033,11 @@ class AttributeNode(ExprNode):
 
     def infer_type(self, env):
         # FIXME: this is way too redundant with analyse_types()
-        node = self.analyse_as_cimported_attribute_node(env, target=False)
+        node = self.analyse_as_cimported_attribute_node(env, target=False, report_errors=False)
         if node is not None:
+            if node.entry is None:
+                # the cimported module has no such attribute (reported by analyse_types)
+                return PyrexTypes.error_type
             if node.entry.type and node.entry.type.is_cfunction:
                 # special-case - function converted to pointer
                 return PyrexTypes.CPtrType(node.entry.type)
@@ -8083,7 +8086,7 @@ class AttributeNode(ExprNode):
             node.wrap_obj_in_nonecheck(env)
         return node
 
-    def analyse_as_cimported_attribute_node(self, env, target):
+    def analyse_as_cimported_attribute_node(self, env, target, report_errors=True):
         # Try to interpret this as a reference to an imported
         # C const, type, var or function. If successful, mutates
         # this node into a NameNode and returns 1, otherwise
@@ -8097,7 +8100,8 @@ class AttributeNode(ExprNode):
                 return self.as_name_node(env, entry, target)
             if self.is_cimported_module_without_shadow(env):
                 # TODO: search for submodule
-                error(self.pos, "cimported module has no attribute '%s'" % self.attribute)
+                if report_errors:
+                    error(self.pos, "cimported module has no attribute '%s'" % self.attribute)
                 return self
         return None
 
