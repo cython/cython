@@ -4,10 +4,7 @@
 import sys
 import functools
 import cython
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
 cdef int func_implicit(int a, int b):
     raise RuntimeError
@@ -148,11 +145,11 @@ cdef extern int extern_fun_fun(int (*f)(int))
 
 
 _WARNINGS = """
-12:0: Unraisable exception in function 'legacy_implicit_noexcept.func_implicit'.
-12:22: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
-15:0: Unraisable exception in function 'legacy_implicit_noexcept.func_noexcept'.
-27:28: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
-45:0: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
-45:0: Unraisable exception in function 'legacy_implicit_noexcept.func_pure_implicit'.
-49:0: Unraisable exception in function 'legacy_implicit_noexcept.func_pure_noexcept'.
+9:0: Unraisable exception in function 'legacy_implicit_noexcept.func_implicit'.
+9:22: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
+12:0: Unraisable exception in function 'legacy_implicit_noexcept.func_noexcept'.
+24:28: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
+42:0: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
+42:0: Unraisable exception in function 'legacy_implicit_noexcept.func_pure_implicit'.
+46:0: Unraisable exception in function 'legacy_implicit_noexcept.func_pure_noexcept'.
 """

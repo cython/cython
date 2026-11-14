@@ -360,3 +360,94 @@ def unpack_many_right_loop(it):
     for i in range(1):
         *a,b,c,d,e,f,g,h,i,j = it
     return a,b,c,d,e,f,g,h,i,j
+
+
+def listcomp_augmented_starred_target(xs):
+    """
+    >>> listcomp_augmented_starred_target([('a', 1, 'x'), ('b', 2)])
+    [1, 2]
+    """
+    # ticket: 7894
+    out = []
+    out += [c for k, c, *_ in xs]
+    return out
+
+
+def setcomp_augmented_starred_target(xs):
+    """
+    >>> sorted(setcomp_augmented_starred_target([('a', 1, 'x'), ('b', 2)]))
+    ['a', 'b']
+    """
+    # ticket: 7894
+    s = set()
+    s |= {x for x, *_ in xs}
+    return s
+
+
+def unpack_starred_rhs(x, y):
+    """
+    >>> unpack_starred_rhs(1, [2, 3])
+    (1, 2, 3)
+    >>> unpack_starred_rhs(1, [2])  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ValueError: need more than 2 values to unpack
+    """
+    a, b, c = x, *y
+    return a, b, c
+
+
+def unpack_starred_rhs_same_length(x, y):
+    """
+    >>> unpack_starred_rhs_same_length(1, [2])
+    (1, 2)
+    """
+    a, b = x, *y
+    return a, b
+
+
+def unpack_only_starred_rhs(x, y):
+    """
+    >>> unpack_only_starred_rhs([], [1])
+    1
+    >>> unpack_only_starred_rhs([1], [2])  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ValueError: too many values to unpack
+    """
+    out, = *x, *y
+    return out
+
+
+def unpack_starred_both_sides(a, b, c):
+    """
+    >>> unpack_starred_both_sides(1, 2, [3, 4])
+    (1, [2, 3], 4)
+    """
+    x, *y, z = a, b, *c
+    return x, y, z
+
+
+def unpack_empty_star_at_end(a, b):
+    """
+    >>> unpack_empty_star_at_end(1, 2)
+    (1, 2, [])
+    """
+    x, y, *z = a, b
+    return x, y, z
+
+
+def unpack_empty_star_in_middle(a, b):
+    """
+    >>> unpack_empty_star_in_middle(1, 2)
+    (1, [], 2)
+    """
+    x, *y, z = a, b
+    return x, y, z
+
+
+def unpack_empty_tuple_target(x):
+    """
+    >>> unpack_empty_tuple_target(1)
+    1
+    """
+    a, () = x, ()
+    return a

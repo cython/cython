@@ -190,7 +190,7 @@ def test_cdef_attribute():
     cdef ExtClass extobj = ExtClass.__new__(ExtClass)
     try:
         print extobj.mview
-    except AttributeError, e:
+    except AttributeError as e:
         print e.args[0]
     else:
         print "No AttributeError was raised"
@@ -198,7 +198,7 @@ def test_cdef_attribute():
     cdef int[:] myview
     try:
         print myview
-    except UnboundLocalError, e:
+    except UnboundLocalError as e:
         print e.args[0]
     else:
         print "No UnboundLocalError was raised"
@@ -206,12 +206,12 @@ def test_cdef_attribute():
     cdef int[:] otherview
     try:
          otherview = myview
-    except UnboundLocalError, e:
+    except UnboundLocalError as e:
         print e.args[0]
 
     try:
         print get_ext_obj().mview
-    except AttributeError, e:
+    except AttributeError as e:
         print e.args[0]
     else:
         print "No AttributeError was raised"
@@ -863,7 +863,29 @@ def test_pyview_of_memview(int[:] ints):
     >>> A = IntMockBuffer(None, [1, 2, 3])
     >>> len(test_pyview_of_memview(A))
     3
+
+    >>> writable = test_pyview_of_memview(A)
+    >>> list(test_pyview_of_memview(writable))
+    [1, 2, 3]
+
+    Views of read-only storage cannot be converted to writable views.
+    >>> A = IntMockBuffer(None, [1, 2, 3], writable=False)
+    >>> const = const_int_view(A)
+    >>> list(const_int_view(const))
+    [1, 2, 3]
+    >>> test_pyview_of_memview(const)
+    Traceback (most recent call last):
+        ...
+    ValueError: Cannot create writable memory view from read-only memoryview
+    >>> test_pyview_of_memview(const[::2])
+    Traceback (most recent call last):
+        ...
+    ValueError: Cannot create writable memory view from read-only memoryview
     """
+    return ints
+
+
+def const_int_view(const int[:] ints):
     return ints
 
 
@@ -1435,7 +1457,21 @@ def test_untyped_index(i):
     cdef int[:] mview_arr = arr
     return mview_arr[i]  # should generate a performance hint
 
+def test_double_sliced_assignment(ExtClass ec):
+    """
+    >>> test_double_sliced_assignment(ExtClass())
+    1 9
+    0 8
+    """
+    for i in range(ec.mview.shape[0]):
+        ec.mview[i] = i
+    arr = ec.mview
+    ec.mview = arr[1:]
+    print ec.mview[0], ec.mview[-1]
+    ec.mview = arr[:-1]
+    print ec.mview[0], ec.mview[-1]
+
 _PERFORMANCE_HINTS = """
 243:9: Use boundscheck(False) for faster access
-1436:21: Index should be typed for more efficient access
+1458:21: Index should be typed for more efficient access
 """

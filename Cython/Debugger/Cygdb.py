@@ -39,7 +39,34 @@ def make_command_file(path_to_debug_info, prefix_code='',
     f = os.fdopen(fd, 'w')
     try:
         f.write(prefix_code)
-        f.write(textwrap.dedent('''\
+
+        virtualenv = os.getenv('VIRTUAL_ENV')
+        if virtualenv:
+            import site
+            import pathlib
+            import platform
+            import sysconfig
+            # Emulating the virtual env we're in will always be imperfect. But:
+            # * Work out the site packages from the current interpreter and add those
+            #   to the start of the path to let those be found first.
+            # * Use addsitedir to process any .pth files. This lets an editable Cython install
+            #   be imported for example.
+            # This will work best if the virtual environment is the same Python version as
+            # the interpreter linked into GDB.
+            is_freethreaded_build = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
+            sitepackages = site.getsitepackages()
+            sitepackages = [ p for p in sitepackages if pathlib.Path(p).is_relative_to(virtualenv) ]
+            activate_virtualenv = (
+                f'import sys; sys.path[:0] = {sitepackages!r}; '
+                f'import site; {"".join(f"site.addsitedir({p!r}); " for p in sitepackages)}'
+                f'print("gdb command file: Activating virtualenv: {virtualenv}")'
+            )
+            call_args = f'{sys.version_info[:2] !r}, {is_freethreaded_build !r}, {platform.machine() !r}'
+        else:
+            activate_virtualenv = 'pass'
+            call_args = '0, 0, False, ""'
+
+        f.write(textwrap.dedent(f'''\
             # This is a gdb command file
             # See https://sourceware.org/gdb/onlinedocs/gdb/Command-Files.html
 
@@ -47,23 +74,33 @@ def make_command_file(path_to_debug_info, prefix_code='',
             set print pretty on
 
             python
-            try:
-                # Activate virtualenv, if we were launched from one
-                import os
+            def _cygdb_check_virtualenv_match(venv_pyversion, venv_is_freethreading, venv_machine):
                 import sys
-                virtualenv = os.getenv('VIRTUAL_ENV')
-                if virtualenv:
-                    scripts_dir = 'Scripts' if sys.platform == "win32" else 'bin'
-                    path_to_activate_this_py = os.path.join(virtualenv, scripts_dir, 'activate_this.py')
-                    print("gdb command file: Activating virtualenv: %s; path_to_activate_this_py: %s" % (
-                        virtualenv, path_to_activate_this_py))
-                    with open(path_to_activate_this_py) as f:
-                        exec(f.read(), dict(__file__=path_to_activate_this_py))
+                if sys.version_info[:2] == venv_pyversion:
+                    import sysconfig
+                    if bool(sysconfig.get_config_var("Py_GIL_DISABLED")) == venv_is_freethreading:
+                        import platform
+                        if platform.machine() == venv_machine:
+                            return True
+
+                print("Not activating virtual environment for mismatched Python version %d.%d%s (%s)" % (
+                    venv_pyversion[0], venv_pyversion[1],
+                    "t" if is_freethreaded_build else "",
+                    platform_machine,
+                )
+                return False
+
+            import sys
+            try:
+                # Activate virtualenv, if we were launched from one that matches what gdb uses.
+                if {bool(virtualenv) !r} and _cygdb_check_virtualenv_match({call_args}):
+                    {activate_virtualenv}
                 from Cython.Debugger import libcython, libpython
             except Exception as ex:
                 from traceback import print_exc
                 print("There was an error in Python code originating from the file " + ''' + repr(__file__) + ''')
-                print("It used the Python interpreter " + str(sys.executable))
+                print("It used the Python interpreter " + str(sys.executable) + " " + str(sys.version_info))
+                print("sys.path " + str(sys.path))
                 print_exc()
                 exit(1)
             end

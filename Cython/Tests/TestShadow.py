@@ -91,20 +91,35 @@ class TestShadow(TimedTest):
             future_directives = []
         cython_scope._context = Context
 
+        type_names = {
+            name for (_, _, name), _ in PyrexTypes.modifiers_and_name_to_type.items()
+        } | {
+            'py_bool',
+            'py_float',
+            'py_int',
+            'py_complex',
+        }
+
         missing_types = []
         missing_lookups = []
-        for (signed, longness, name), type_ in PyrexTypes.modifiers_and_name_to_type.items():
+
+        for name in type_names:
             if name == 'object':
                 continue  # This probably shouldn't be in Shadow
             if not hasattr(Shadow, name):
                 missing_types.append(name)
             if not cython_scope.lookup_type(name):
                 missing_lookups.append(name)
+
+            if name.startswith('py_'):
+                return
+
             for ptr in range(1, 4):
                 ptr_name = 'p' * ptr + '_' + name
                 if not hasattr(Shadow, ptr_name):
                     missing_types.append(ptr_name)
                 if not cython_scope.lookup_type(ptr_name):
                     missing_lookups.append(ptr_name)
+
         self.assertEqual(missing_types, [])
         self.assertEqual(missing_lookups, [])

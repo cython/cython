@@ -160,6 +160,7 @@ def h(a, b, c, *args, **kwargs):
 
 args = (9,8,7)
 kwargs = {u"test" : u"toast"}
+frozen_kwargs = frozendict({u"test" : u"toast"})
 
 def test_kw_args(f):
     """
@@ -169,6 +170,8 @@ def test_kw_args(f):
     1 2 7 * 2 1
     1 2 9 * 2 2
     1 2 9 * 2 2
+    1 2 9 * 2 2
+    1 2 9 * 2 3
     1 2 9 * 2 3
     >>> test_kw_args(e)
     2 1
@@ -176,14 +179,18 @@ def test_kw_args(f):
     5 1
     5 2
     5 2
+    5 2
+    5 3
     5 3
     """
     f(1,2, c=3)
     f(1,2, d=3, *args)
     f(1,2, d=3, *(7,8,9))
     f(1,2, d=3, *args, **kwargs)
+    f(1,2, d=3, *args, **frozen_kwargs)
     f(1,2, d=3, *args, e=5)
     f(1,2, d=3, *args, e=5, **kwargs)
+    f(1,2, d=3, *args, e=5, **frozen_kwargs)
 
 def test_pos_args(f):
     """
@@ -213,9 +220,13 @@ def test_kw(f):
     0 2
     0 2
     0 1
+    0 2
+    0 1
     >>> test_kw(g)
     1
     2
+    2
+    1
     2
     1
     """
@@ -223,6 +234,8 @@ def test_kw(f):
     f(d=3, e=5)
     f(d=3, **kwargs)
     f(**kwargs)
+    f(d=3, **frozen_kwargs)
+    f(**frozen_kwargs)
 
 def test_noargs(f):
     """

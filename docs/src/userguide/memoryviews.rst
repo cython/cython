@@ -852,11 +852,7 @@ CPython array module
 An alternative to ``cython.view.array`` is the ``array`` module in the
 Python standard library.  In Python 3, the ``array.array`` type supports
 the buffer interface natively, so memoryviews work on top of it without
-additional setup.
-
-Starting with Cython 0.17, however, it is possible to use these arrays
-as buffer providers also in Python 2.  This is done through explicitly
-cimporting the ``cpython.array`` module as follows:
+additional setup:
 
 .. tabs::
 
@@ -868,7 +864,7 @@ cimporting the ``cpython.array`` module as follows:
 
         .. literalinclude:: ../../examples/userguide/memoryviews/cpython_array.pyx
 
-Note that the cimport also enables the old buffer syntax for the array
+Cimporting ``cpython.array`` also enables the old buffer syntax for the array
 type.  Therefore, the following also works:
 
 .. tabs::

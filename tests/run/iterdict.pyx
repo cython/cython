@@ -1,8 +1,24 @@
+# mode: run
+# cython: language_level=2
+
+from __future__ import print_function
 
 cimport cython
 
+import sys
+
+def skip_if_no_frozendict(f):
+    if sys.version_info >= (3, 15):
+        return f
+    return None
+
+
+__doc__ = ""
+
 dict_size = 4
 d = dict(zip(range(10,dict_size+10), range(dict_size)))
+fd = frozendict(d)
+empty_fd = frozendict({})
 
 
 def dict_iteritems(dict d):
@@ -38,8 +54,9 @@ def dict_itervalues(dict d):
     return d.itervalues()
 
 
-@cython.test_fail_if_path_exists(
-    "//WhileStatNode")
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
 def items(dict d):
     """
     >>> items(d)
@@ -246,7 +263,7 @@ def optimistic_iterkeys_argerror(d):
     ... except (TypeError, AttributeError): pass
     """
     for k in d.iterkeys(1):
-        print k
+        print(k)
 
 @cython.test_assert_path_exists(
     "//WhileStatNode",
@@ -557,6 +574,92 @@ def for_in_iteritems_of_expression(*args, **kwargs):
     return result
 
 
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
+def iterfrozendict(frozendict fd):
+    """
+    >>> iterfrozendict(fd)
+    [10, 11, 12, 13]
+    >>> iterfrozendict(empty_fd)
+    []
+    """
+    l = []
+    for k in fd:
+        l.append(k)
+    l.sort()
+    return l
+
+
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
+def iterfrozendict_listcomp(frozendict fd):
+    """
+    >>> iterfrozendict_listcomp(fd)
+    [10, 11, 12, 13]
+    >>> iterfrozendict_listcomp(empty_fd)
+    []
+    """
+    cdef list l = [k for k in fd]
+    l.sort()
+    return l
+
+
+@skip_if_no_frozendict
+def frozendict_iteritems(frozendict fd):
+    """
+    >>> frozendict_iteritems(fd)
+    Traceback (most recent call last):
+        ...
+    AttributeError: type object 'frozendict' has no attribute 'iteritems'
+    """
+    for k, v in fd.iteritems():
+        print(f"This really shouldn't happen: {k}, {v}")
+
+
+@skip_if_no_frozendict
+def frozendict_iterkeys(frozendict fd):
+    """
+    >>> frozendict_iterkeys(fd)
+    Traceback (most recent call last):
+        ...
+    AttributeError: type object 'frozendict' has no attribute 'iterkeys'
+    """
+    for k, v in fd.iterkeys():
+        print(f"This really shouldn't happen: {k}, {v}")
+
+
+@skip_if_no_frozendict
+def frozendict_itervalues(frozendict fd):
+    """
+    >>> frozendict_itervalues(fd)
+    Traceback (most recent call last):
+        ...
+    AttributeError: type object 'frozendict' has no attribute 'itervalues'
+    """
+    for k, v in fd.itervalues():
+        print(f"This really shouldn't happen: {k}, {v}")
+
+
+if sys.version_info >= (3, 15):
+    from textwrap import dedent
+    __doc__ += dedent("""
+    >>> optimistic_iteritems(fd)
+    Traceback (most recent call last):
+        ...
+    AttributeError: 'frozendict' object has no attribute 'iteritems'
+    >>> optimistic_iterkeys(fd)
+    Traceback (most recent call last):
+        ...
+    AttributeError: 'frozendict' object has no attribute 'iterkeys'
+    >>> optimistic_itervalues(fd)
+    Traceback (most recent call last):
+        ...
+    AttributeError: 'frozendict' object has no attribute 'itervalues'
+    """)
+
+
 cdef class NotADict:
     """
     >>> NotADict().listvalues()  # doctest: +IGNORE_EXCEPTION_DETAIL
@@ -571,3 +674,31 @@ cdef class NotADict:
 
     def listvalues(self):
         return [v for v in self.itervalues()]
+
+
+@cython.annotation_typing(False)
+def iterate_optional_dict_untyped(values: dict[int, float] | None = None):
+    """
+    >>> iterate_optional_dict_untyped()
+    >>> iterate_optional_dict_untyped(None)
+    >>> iterate_optional_dict_untyped({})
+    >>> iterate_optional_dict_untyped({'a': 'b'})
+    a b
+    """
+    # See https://github.com/cython/cython/issues/7931
+    for key, value in (values or {}).items():
+        print(key, value)
+
+
+@cython.annotation_typing(True)
+def iterate_optional_dict_typed(values: dict[int, float] | None = None):
+    """
+    >>> iterate_optional_dict_typed()
+    >>> iterate_optional_dict_typed(None)
+    >>> iterate_optional_dict_typed({})
+    >>> iterate_optional_dict_typed({'a': 'b'})
+    a b
+    """
+    # See https://github.com/cython/cython/issues/7931
+    for key, value in (values or {}).items():
+        print(key, value)

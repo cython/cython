@@ -1,3 +1,6 @@
+# uses @functools.wraps()
+# cython: binding=True
+
 """
 Cython -- Things that don't belong anywhere else in particular
 """
@@ -9,6 +12,7 @@ cython.declare(
     os=object, sys=object, re=object, io=object, glob=object, shutil=object, tempfile=object,
     update_wrapper=object, partial=object, wraps=object, cython_version=object,
     _cache_function=object, _function_caches=list, _parse_file_version=object, _match_file_encoding=object,
+    _match_non_comment_line=object
 )
 
 import os
@@ -195,14 +199,6 @@ def file_newer_than(path, time):
     return ftime > time
 
 
-def safe_makedirs(path):
-    try:
-        os.makedirs(path)
-    except OSError:
-        if not os.path.isdir(path):
-            raise
-
-
 def copy_file_to_dir_if_newer(sourcefile, destdir):
     """
     Copy file sourcefile to directory destdir (creating it if needed),
@@ -214,7 +210,7 @@ def copy_file_to_dir_if_newer(sourcefile, destdir):
         desttime = modification_time(destfile)
     except OSError:
         # New file does not exist, destdir may or may not exist
-        safe_makedirs(destdir)
+        os.makedirs(destdir, exist_ok=True)
     else:
         # New file already exists
         if not file_newer_than(sourcefile, desttime):
@@ -331,6 +327,7 @@ def decode_filename(filename):
 
 # support for source file encoding detection
 
+_match_non_comment_line = re.compile(br"\s*[^\s#]").match
 _match_file_encoding = re.compile(br"(\w*coding)[:=]\s*([-\w.]+)").search
 
 
@@ -347,13 +344,21 @@ def detect_opened_file_encoding(f, default='UTF-8'):
         if not data:
             break
 
-    m = _match_file_encoding(lines[0])
-    if m and m.group(1) != b'c_string_encoding':
-        return m.group(2).decode('iso8859-1')
-    elif len(lines) > 1:
-        m = _match_file_encoding(lines[1])
+    for line in lines[:2]:
+        m = _match_non_comment_line(line)
         if m:
-            return m.group(2).decode('iso8859-1')
+            return default
+        m = _match_file_encoding(line)
+        if not m:
+            continue
+        if m.group(1) == b'c_string_encoding':
+            from .Compiler.Errors import warning
+            warning(
+                None,
+                "c_string_encoding in the first two lines of a file is interpreted as a directive "
+                "in Cython and a source file-encoding in Python", 2)
+            continue
+        return m.group(2).decode('iso8859-1')
     return default
 
 
@@ -543,6 +548,16 @@ class OrderedSet:
         return bool(self._set)
 
     __nonzero__ = __bool__
+
+
+def set_dedup(it):
+    """Deduplicate the items in an iterable using a set.
+    """
+    seen = set()
+    for item in it:
+        if item not in seen:
+            seen.add(item)
+            yield item
 
 
 # Class decorator that adds a metaclass and recreates the class with it.

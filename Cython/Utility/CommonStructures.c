@@ -85,6 +85,7 @@ static PyObject* __Pyx_PyType_FromMetaclass(PyTypeObject *metaclass, PyObject *m
         Py_INCREF((PyObject*)metaclass);
         Py_SET_TYPE(result, metaclass);
         Py_DECREF(old_tp);
+        PyType_Modified((PyTypeObject*)result);
     }
     return result;
 }

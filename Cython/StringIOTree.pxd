@@ -4,7 +4,7 @@ cdef object StringIO
 
 @cython.final
 cdef class StringIOTree:
-    cdef public list prepended_children
+    cdef public list[StringIOTree] prepended_children
     cdef public object stream
     cdef public object write
     cdef public list markers

@@ -18,6 +18,26 @@ class TestMethodDispatcherTransform(TimedTest):
         assert_widest(PT.c_int_type, cenum, PT.c_int_type)
 
 
+class TestSpanningTypes(TimedTest):
+
+    def test_reduce_spanning_types(self):
+        def assert_spanning(types, spanning):
+            self.assertEqual(spanning, PT.reduce_spanning_types(types))
+
+        pyint = PT.BuiltinObjectType('int', 'c_int')
+        pyfloat = PT.BuiltinObjectType('float', 'c_float')
+        pybool = PT.BuiltinObjectType('bool', 'c_bool')
+
+        # C integer and floating point types can be widened without changing their Python value type.
+        assert_spanning([PT.c_int_type, PT.c_long_type], PT.c_long_type)
+        assert_spanning([PT.c_float_type, PT.c_double_type], PT.c_double_type)
+        assert_spanning([pyfloat, PT.c_double_type], PT.c_double_type)
+        # Changing the Python value type is not acceptable.
+        assert_spanning([pyint, pyfloat], PT.py_object_type)
+        assert_spanning([pybool, pyint], PT.py_object_type)
+        assert_spanning([PT.c_double_type, PT.c_double_complex_type], PT.py_object_type)
+
+
 class TestBuiltinTypes(TimedTest):
 
     BUILTIN_FLAGS_MAPPING = {
@@ -26,18 +46,22 @@ class TestBuiltinTypes(TimedTest):
         'is_pybool_type': ['bool'],
         'is_pycomplex_type': ['complex'],
         'is_pylist_type': ['list'],
+        'is_pytuple_type': ['tuple'],
         'is_pydict_type': ['dict'],
         'is_pyfrozendict_type': ['frozendict'],
+        'is_pyanydict_type': ['dict', 'frozendict'],
         'is_pyset_type': ['set'],
-        'is_pytuple_type': ['tuple'],
         'is_pyfrozenset_type': ['frozenset'],
+        'is_pyanyset_type': ['set', 'frozenset'],
         'is_pybytes_type': ['bytes'],
         'is_pystr_type': ['str'],
         'is_pybytearray_type': ['bytearray'],
         'is_pymemoryview_type': ['memoryview'],
         'is_builtin_sequence': ['list', 'tuple', 'bytes', 'str', 'bytearray'],
         'is_bytes_or_str_or_bytearray': ['bytes', 'str', 'bytearray'],
-        'supports_container_type': ['list', 'dict', 'frozendict', 'set', 'frozenset'],
+        'has_uniform_element_type': ['list', 'set', 'frozenset'],
+        'supports_container_type': ['list', 'dict', 'frozendict', 'set', 'frozenset', 'dict_keys', 'dict_values', 'dict_items'],
+        'is_exception_type': PT.KNOWN_EXCEPTION_NAMES,
     }
 
     def test_set_builtin_type_flags(self):
@@ -55,6 +79,7 @@ class TestBuiltinTypes(TimedTest):
                     True,
                     f"{attr} should be set for {type_name}"
                 )
+
 
 class TestTypeIdentifiers(TimedTest):
 

@@ -614,6 +614,47 @@ def literal_compare_bytes_str():
     return b'abc' != 'abc'
 
 
+def str_bytes_char_eq(str s):
+    """
+    >>> 'a' == b'a'
+    False
+    >>> str_bytes_char_eq('a')
+    False
+    >>> 'b' == b'a'
+    False
+    >>> str_bytes_char_eq('b')
+    False
+
+    >>> None == b'a'
+    False
+    >>> str_bytes_char_eq(None)
+    False
+    """
+    # From https://github.com/cython/cython/issues/7924
+    result = s == b'a'
+    return result
+
+
+def str_bytes_char_neq(str s):
+    """
+    >>> 'a' != b'a'
+    True
+    >>> str_bytes_char_neq('a')
+    True
+    >>> 'b' != b'a'
+    True
+    >>> str_bytes_char_neq('b')
+    True
+
+    >>> None != b'a'
+    True
+    >>> str_bytes_char_neq(None)
+    True
+    """
+    result = s != b'a'
+    return result
+
+
 # Py_UCS4 comparison
 
 @cython.test_assert_path_exists(

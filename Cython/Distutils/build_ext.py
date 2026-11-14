@@ -66,6 +66,8 @@ class build_ext(_build_ext):
         self.cython_gdb = False
         self.cython_compile_time_env = None
         self.shared_utility_qualified_name = None
+        self.shared_utility_features_enabled = None
+        self.shared_utility_features_disabled = None
 
     def finalize_options(self):
         super().finalize_options()
@@ -126,6 +128,8 @@ class build_ext(_build_ext):
             'c_line_in_traceback': c_line_in_traceback,
             'compile_time_env': self.get_extension_attr(ext, 'cython_compile_time_env', default=None),
             'shared_utility_qualified_name': self.get_extension_attr(ext, 'shared_utility_qualified_name', default=None),
+            'shared_utility_features_enabled': self.get_extension_attr(ext, 'shared_utility_features_enabled', default=None),
+            'shared_utility_features_disabled': self.get_extension_attr(ext, 'shared_utility_features_disabled', default=None),
         }
 
         new_ext = cythonize(

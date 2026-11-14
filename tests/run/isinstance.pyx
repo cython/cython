@@ -1,3 +1,5 @@
+# mode: run
+# tag: isinstance, builtins
 
 cimport cython
 from cpython.bool cimport bool
@@ -40,6 +42,7 @@ def test_non_optimised():
     '//PythonCapiFunctionNode[@cname = "PyTuple_Check"]',
     '//PythonCapiFunctionNode[@cname = "PyList_Check"]',
     '//PythonCapiFunctionNode[@cname = "PyDict_Check"]',
+    '//PythonCapiFunctionNode[@cname = "__Pyx_PyFrozenDict_Check"]',
     '//PythonCapiFunctionNode[@cname = "PySet_Check"]',
     '//PythonCapiFunctionNode[@cname = "PySlice_Check"]',
     '//PythonCapiFunctionNode[@cname = "PyComplex_Check"]',
@@ -94,6 +97,10 @@ def test_optimised():
     assert isinstance(dictval, dict)
     assert isinstance(dict(), dict)
 
+    cdef object frozendictval = frozendict()
+    assert isinstance(frozendictval, frozendict)
+    assert isinstance(frozendict(), frozendict)
+
     cdef object setval = set()
     assert isinstance(setval, set)
     assert isinstance(set(), set)
@@ -125,12 +132,12 @@ def test_optimised_tuple():
     >>> test_optimised_tuple()
     True
     """
-    assert isinstance(int(),   (int, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A))
-    assert isinstance(list(),  (int, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A))
-    assert isinstance(A(),  (int, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A))
-    assert isinstance(A(),  (int, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A, a_as_obj))
-    assert isinstance(A(),  (int, float, bytes, str, unicode, tuple, list, dict, set, slice, type, a_as_obj, A))
-    assert isinstance(A(),  (int, float, bytes, str, unicode, a_as_obj, tuple, list, dict, set, slice, type, A))
+    assert isinstance(int(),   (int, float, bytes, str, unicode, tuple, list, dict, frozendict, set, slice, type, A))
+    assert isinstance(list(),  (int, float, bytes, str, unicode, tuple, list, dict, frozendict, set, slice, type, A))
+    assert isinstance(A(),  (int, float, bytes, str, unicode, tuple, list, dict, frozendict, set, slice, type, A))
+    assert isinstance(A(),  (int, float, bytes, str, unicode, tuple, list, dict, frozendict, set, slice, type, A, a_as_obj))
+    assert isinstance(A(),  (int, float, bytes, str, unicode, tuple, list, dict, frozendict, set, slice, type, a_as_obj, A))
+    assert isinstance(A(),  (int, float, bytes, str, unicode, a_as_obj, tuple, list, dict, frozendict, set, slice, type, A))
     assert isinstance(0, (str, int))
     return True
 
@@ -305,3 +312,25 @@ def test_exttype_or_none(get_obj):
     False
     """
     return isinstance(get_obj(), A | None)
+
+
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode//ResultRefNode",
+)
+def test_call_arg_evaluated_once(get_obj):
+    """
+    A function call as the first argument of isinstance() with a tuple of types
+    must be evaluated exactly once.  Previously, any expression whose result
+    ended up in a temp (is_temp=True, so is_simple()=True) was not cached, and
+    the call was duplicated for every type in the expanded OR chain.
+
+    >>> calls = []
+    >>> def make_none():
+    ...     calls.append(1)
+    ...     return None
+    >>> _ = test_call_arg_evaluated_once(make_none)
+    >>> len(calls)
+    1
+    """
+    # None matches no type, so all branches are reached — no short-circuit.
+    return isinstance(get_obj(), (int, float, str, bytes))

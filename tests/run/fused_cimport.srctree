@@ -1,0 +1,80 @@
+PYTHON setup.py build_ext -if
+
+###################### setup.py ####################
+
+from setuptools import setup
+from Cython.Build import cythonize
+
+setup(
+    ext_modules=cythonize("*.pyx")
+)
+
+################### aaa.pxd ########################
+
+cdef fused IntOrFloat:
+    int
+    float
+
+cdef void simple(IntOrFloat x) noexcept
+cdef void ptr_arg(IntOrFloat *x) noexcept
+cdef IntOrFloat simple_return(IntOrFloat x) noexcept
+cdef IntOrFloat *ptr_return(IntOrFloat x) except NULL
+cdef void multi_args(IntOrFloat x, IntOrFloat *y) noexcept
+cdef void const_arg(const IntOrFloat x) noexcept
+cdef void const_ptr(const IntOrFloat *x) noexcept
+cdef void fptr(void (*f)(IntOrFloat)) noexcept
+
+################### aaa.pyx ########################
+
+from libc.stdlib cimport malloc
+
+cdef void simple(IntOrFloat x) noexcept:
+    print(x)
+
+cdef void ptr_arg(IntOrFloat *x) noexcept:
+    x[0] += 1
+
+cdef IntOrFloat simple_return(IntOrFloat x) noexcept:
+    return x*2
+
+cdef IntOrFloat *ptr_return(IntOrFloat x) except NULL:
+    out = <IntOrFloat*>malloc(sizeof(x))
+    out[0] = x*2
+    return out
+
+cdef void multi_args(IntOrFloat x, IntOrFloat *y) noexcept:
+    y[0] = x*2
+
+cdef void const_arg(const IntOrFloat x) noexcept:
+    print(x)
+
+cdef void const_ptr(const IntOrFloat *x) noexcept:
+    print(x[0])
+
+cdef void fptr(void (*f)(IntOrFloat)) noexcept:
+    f(1)
+
+################### bbb.pyx ########################
+
+cimport aaa
+
+def run():
+    # This is mostly a compile test.
+    cdef int ival = 1
+    cdef float fval = 2.5
+    aaa.simple(ival)
+    aaa.simple(fval)
+    aaa.ptr_arg(&ival)
+    aaa.ptr_arg(&fval)
+    ival = aaa.simple_return(ival)
+    fval = aaa.simple_return(fval)
+    assert aaa.ptr_return(ival) != NULL
+    assert aaa.ptr_return(fval) != NULL
+    aaa.multi_args(ival, &ival)
+    aaa.multi_args(fval, &fval)
+    aaa.const_arg(ival)
+    aaa.const_arg(fval)
+    aaa.const_ptr(&ival)
+    aaa.const_ptr(&fval)
+    aaa.fptr(aaa.simple[int])
+    aaa.fptr(aaa.simple[float])

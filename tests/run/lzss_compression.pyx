@@ -64,10 +64,10 @@ def decompress_py(compressed: bytes):
                         p = lo
                         ml = hi
                     elif (hi & 0x80) == 0:
-                        p = ((hi << 2) & 0x180) | (lo & 0x7F)
+                        p = 0x80 + (((hi << 2) & 0x180) | (lo & 0x7F))
                         ml = hi & 0x1F
                     else:
-                        p = (hi & 0x7F) << 7 | (lo & 0x7F)
+                        p = 0x80 + ((hi & 0x7F) << 7 | (lo & 0x7F))
                         ml = next(iter_bytes)
 
                     ml += 3;
@@ -106,6 +106,8 @@ def test(data: bytes) -> None:
     SIZE: 197 -> 19
     >>> test(b'a' * 317)
     SIZE: 317 -> 19
+    >>> test(b'abcdefgabcdefg')  # flags + b'abcdefg' + (offset(0), length(7)-3)
+    SIZE: 14 -> 10
     >>> test(b'avx' * 317)
     SIZE: 951 -> 27
     >>> test(b'\\0')
@@ -121,11 +123,32 @@ def test(data: bytes) -> None:
     >>> test(b'0123456789' * 463)
     SIZE: 4630 -> 74
 
-    # Test cutoff at max offset (7+7 bits):
-    >>> test(b'0123456789' + b'x' * ((1 << 14) - 4) + b'234569')
-    SIZE: 16396 -> 227
-    >>> test(b'0123456789' + b'x' * ((1 << 14) - 3) + b'234569')
-    SIZE: 16397 -> 231
+    # Test cutoff at max length 5 bits:
+    >>> length_cutoff = (1 << 5) - 1 + 3
+    >>> test(b'012' + b'x' * (length_cutoff + 0) + b'3' * 0x80 + b'x' * (length_cutoff + 0))
+    SIZE: 199 -> 34
+    >>> test(b'012' + b'x' * (length_cutoff + 1) + b'3' * 0x80 + b'x' * (length_cutoff + 0))
+    SIZE: 200 -> 34
+    >>> test(b'012' + b'x' * (length_cutoff + 1) + b'3' * 0x80 + b'x' * (length_cutoff + 1))
+    SIZE: 201 -> 35
+    >>> test(b'012' + b'x' * (length_cutoff + 2) + b'3' * 0x80 + b'x' * (length_cutoff + 2))
+    SIZE: 203 -> 35
+
+    # Test cutoff at max offset (7+7 bits + 128):
+    >>> (1 << 14) - 1 + 128 - 3
+    16508
+
+    >>> data = b'0123456789' + b'x' * ((1 << 14) - 1 - len(b'23456789') + len(b'234569') + 127) + b'234569'
+    >>> data.index(b'23456', 1 << 14) - data.index(b'23456') - len(b'23456') - 3
+    16508
+    >>> test(data)
+    SIZE: 16524 -> 230
+
+    >>> data = b'0123456789' + b'x' * ((1 << 14) - 1 - len(b'23456789') + len(b'234569') + 128) + b'234569'
+    >>> data.index(b'23456', 1 << 14) - data.index(b'23456') - len(b'23456') - 3
+    16509
+    >>> test(data)
+    SIZE: 16525 -> 233
 
     >>> len(MAKE_SURE_THERE_IS_SOMETHING_TO_COMPRESS)
     1717

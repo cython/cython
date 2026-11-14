@@ -89,16 +89,17 @@ def make_new_typed_target():
 )
 def make_new_with_args():
     """
-    >>> isinstance(make_new_with_args(), MyType)
+    >>> result = make_new_with_args()
     CINIT
-    (1, 2, 3)
-    {}
+    >>> isinstance(result[0], MyType)
     True
+    >>> result[1]
+    (1, 2, 3)
+    >>> result[2]
+    {}
     """
     m = MyType.__new__(MyType, 1, 2 ,3)
-    print m.args
-    print m.kwargs
-    return m
+    return m, m.args, m.kwargs
 
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.test_fail_if_path_exists(
@@ -107,16 +108,17 @@ def make_new_with_args():
 )
 def make_new_with_args_kwargs():
     """
-    >>> isinstance(make_new_with_args_kwargs(), MyType)
+    >>> result = make_new_with_args_kwargs()
     CINIT
-    (1, 2, 3)
-    {'a': 4}
+    >>> isinstance(result[0], MyType)
     True
+    >>> result[1]
+    (1, 2, 3)
+    >>> result[2]
+    {'a': 4}
     """
     m = MyType.__new__(MyType, 1, 2 ,3, a=4)
-    print m.args
-    print m.kwargs
-    return m
+    return m, m.args, m.kwargs
 
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.test_fail_if_path_exists(

@@ -1,6 +1,9 @@
 # mode: run
 # tag: all_language_levels
 
+# cython: test_assert_c_code_has = __Pyx_ListComp_Append\(
+# cython: test_assert_c_code_has = __Pyx_ListComp_AppendAndDecref\(
+
 cimport cython
 
 
@@ -237,6 +240,17 @@ def unpack_list_simple(it):
     [2, 1]
     """
     return [*it]
+
+
+@cython.test_assert_path_exists(
+    "//MergedSequenceNode",
+)
+def unpack_list_temps(it, x):
+    """
+    >>> unpack_list_temps([1, 2, 3], 4)
+    [1, 2, 3, 4, 5, 6, 1, 2, 3, 7, 8, 9]
+    """
+    return [*it, *[x, x+1, x+2], *it, *[x+3, x+4], *[x+5]]
 
 
 def unpack_list_from_iterable(it):
@@ -601,6 +615,24 @@ def unpack_in_call(f):
     def wrapper(*args, **kwargs):
         return f(*args, more=2, **{**kwargs, 'test': 1})
     return wrapper
+
+
+@cython.test_assert_path_exists(
+    "//TupleNode",
+    "//TupleNode[@is_literal=True]",
+)
+@cython.test_fail_if_path_exists(
+    "//TupleNode[@is_literal=False]",
+)
+def unpack_literals_in_call_error(func):
+    """
+    >>> def func(*args, **kwargs): print(args, kwargs)
+
+    >>> unpack_literals_in_call_error(func)
+    Traceback (most recent call last):
+    TypeError: keywords must be strings
+    """
+    return func(**{((3,), (4, 5)): 'constant_tuple', 1: 'constant_int'})
 
 
 def unpack_in_loop(a: list[float], b: list[float]):
