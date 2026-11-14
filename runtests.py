@@ -437,8 +437,10 @@ def get_openmp_compiler_flags(language):
     if not gcc_version:
         if sys.platform == 'win32':
             return '/openmp', ''
+        elif get_clang_version(language) and sys.platform != "darwin":
+            return '-fopenmp', '-fopenmp'
         else:
-            return None # not gcc - FIXME: do something about other compilers
+            return None # not a known compiler
 
     # gcc defines "__int128_t", assume that at least all 64 bit architectures have it
     global COMPILER_HAS_INT128
