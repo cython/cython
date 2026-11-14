@@ -2,6 +2,7 @@
 # coding: ASCII
 # tag: py_unicode_strings
 
+#
 # ok:
 cdef char* c1   =  "abc"
 cdef str s1     =  "abc"
