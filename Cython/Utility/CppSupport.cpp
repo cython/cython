@@ -123,6 +123,12 @@ public:
         this->emplace(*rhs);
         return *this;
     }
+    __Pyx_Optional_Type& operator=(__Pyx_Optional_Type& rhs) {
+        // Clang seems to deduce non-const reference rhs under some circumstances.
+        // Treat it the same as const.
+        this->emplace(const_cast<T&>(*rhs));
+        return *this;
+    }
     __Pyx_Optional_Type& operator=(__Pyx_Optional_Type&& rhs) {
         this->emplace(std::move(*rhs));
         return *this;
