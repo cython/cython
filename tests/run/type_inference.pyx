@@ -1124,13 +1124,47 @@ cdef class InferInProperties:
             return typeof(a), typeof(b), typeof(c), typeof(d)
 
 cdef class WithMethods:
-    cdef int offset
+    cdef public int offset
     def __init__(self, offset):
         self.offset = offset
+    cdef int cdef_one_arg(self, int x):
+        return x + self.offset * 2
     cpdef int one_arg(self, int x):
         return x + self.offset
     cpdef int default_arg(self, int x, int y=0):
         return x + y + self.offset
+
+    def bound_methods_in_containers(self):
+        res = []
+        for m in [self.one_arg]:
+            assert id(m) > 0
+            res.append(m(2))
+        for m in (self.one_arg,):
+            res.append(m(3))
+        for m in {self.one_arg}:
+            res.append(m(4))
+        for m in [self.one_arg, self.default_arg]:
+            res.append(m(5))
+        for m in (self.one_arg, self.default_arg):
+            res.append(m(6))
+        for m in (self.cdef_one_arg,):
+            res.append(m(2))
+        t = (self.one_arg,)
+        return (
+            res,
+            [self.one_arg][0](2),
+            (self.one_arg,)[0](2),
+            [self.one_arg, 1][0](2),
+            (self.one_arg, 1)[0](2),
+            t[0](2),
+            [self.cdef_one_arg][0](2),
+            (self.cdef_one_arg,)[0](2),
+        )
+
+
+class SubWithMethods(WithMethods):
+    def one_arg(self, x):
+        return x + self.offset + 100
 
 
 def test_bound_methods():
@@ -1146,6 +1180,46 @@ def test_bound_methods():
   default_arg = o.default_arg
   assert default_arg(2) == 12, default_arg(2)
   assert default_arg(2, 3) == 15, default_arg(2, 2)
+
+  assert o.bound_methods_in_containers() == (
+      [12, 13, 14, 15, 15, 16, 16, 22],
+      12, 12, 12, 12, 12, 22, 22,
+  )
+  assert SubWithMethods(10).bound_methods_in_containers() == (
+      [112, 113, 114, 115, 15, 116, 16, 22],
+      112, 112, 112, 112, 112, 22, 22,
+  )
+  assert [m(2) for m in [o.one_arg]] == [12]
+  assert (o.one_arg,)[0](2) == 12
+  assert [o.one_arg][0](2) == 12
+  cdef unicode sep = u','
+  assert (sep.join,)[0]([u'a', u'b']) == u'a,b'
+  assert [sep.join][0]([u'a', u'b']) == u'a,b'
+
+
+@infer_types(None)
+def test_bound_methods_in_containers_safe_mode():
+  """
+  >>> test_bound_methods_in_containers_safe_mode()
+  """
+  o = WithMethods(10)
+  res = []
+  for m in [o.one_arg]:
+      assert id(m) > 0
+      res.append(m(2))
+  for m in (o.one_arg,):
+      res.append(m(3))
+  for m in {o.one_arg}:
+      res.append(m(4))
+  assert res == [12, 13, 14], res
+  assert (o.one_arg,)[0](2) == 12
+  assert [o.one_arg][0](2) == 12
+  t = (o.one_arg,)
+  assert t[0](2) == 12
+  assert o.bound_methods_in_containers() == (
+      [12, 13, 14, 15, 15, 16, 16, 22],
+      12, 12, 12, 12, 12, 22, 22,
+  )
 
 
 def test_builtin_max():
