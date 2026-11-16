@@ -79,6 +79,9 @@ def _interruptible_pool(pool_cm):
 
 
 def _build(ext_modules, parallel):
+    if parallel is None and sys.implementation.name == 'graalpy':
+        # Each GraalPy worker has a substantial memory footprint.
+        parallel = 1
     modcount = sum(len(modules) for _, modules in ext_modules)
     if not modcount:
         return
