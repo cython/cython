@@ -173,8 +173,12 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   # It looks like parallel build may be causing occasional link failures on Windows
   # "with exit code 1158". DW isn't completely sure of this, but has disabled it in
   # the hope it helps
-  SETUP_ARGS="$SETUP_ARGS
-    $($PYTHON -c 'import sys; print("-j5" if not sys.platform.startswith("win") else "")')"
+  if [[ $PYTHON_VERSION == "graalpy"* ]]; then
+    SETUP_ARGS="$SETUP_ARGS -j1"
+  else
+    SETUP_ARGS="$SETUP_ARGS
+      $($PYTHON -c 'import sys; print("-j5" if not sys.platform.startswith("win") else "")')"
+  fi
 
   CFLAGS=$BUILD_CFLAGS \
     $PYTHON setup.py build_ext -i $SETUP_ARGS || exit 1
