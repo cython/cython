@@ -941,6 +941,8 @@ class CQualifierDeclaratorNode(CDeclaratorNode):
     def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
         if isinstance(self.base, CFuncDeclaratorNode) and self.is_restrict:
             error(self.pos, "Restrict qualifier cannot be applied to function type")
+        if self.is_restrict and base_type.is_memoryviewslice and env.is_local_scope:
+            warning(self.pos, "Restrict qualifier of memoryview type is ignored in local variable type", level=2)
         if self.is_restrict and base_type.is_memoryviewslice:
             # The slice struct itself cannot be restrict-qualified in C.  Instead, the
             # argument's data pointer is passed as a restrict parameter to the function
@@ -1625,6 +1627,11 @@ class CVarDefNode(StatNode):
                 name_declarator, type = declarator.analyse(
                     base_type, env, directive_locals=self.directive_locals, visibility=visibility, in_pxd=self.in_pxd)
             else:
+                if (
+                   base_type.is_memoryviewslice and env.is_c_class_scope and
+                   isinstance(declarator, CQualifierDeclaratorNode) and declarator.is_restrict
+                ):
+                    warning(self.pos, "Restrict qualifier of memoryview type is ignored in class attribute type", level=2)
                 name_declarator, type = declarator.analyse(
                     base_type, env, visibility=visibility, in_pxd=self.in_pxd)
             if not type.is_complete():

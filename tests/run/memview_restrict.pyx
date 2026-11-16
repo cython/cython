@@ -1,5 +1,5 @@
 # mode: run
-# tag: memoryview, restrict
+# tag: memoryview, restrict, warnings
 # cython: test_assert_c_code_has = CYTHON_UNUSED char \*CYTHON_RESTRICT __pyx_dp_v_y
 # cython: test_assert_c_code_has = static CYTHON_FORCE_INLINE void __pyx_ri_f_16memview_restrict_saxpy\(
 # cython: test_assert_c_code_has = __pyx_dp_v_plain_arg = __pyx_v_plain_arg.data;
@@ -11,7 +11,7 @@ cimport cython
 from array import array
 
 
-cdef void saxpy(const double[::1] restrict x, double[::1] restrict y, double alpha) noexcept nogil:
+cdef void saxpy(const double[::1] restrict x, double[::1] restrict y, double alpha):
     cdef Py_ssize_t i
     for i in range(y.shape[0]):
         y[i] = alpha * x[i] + y[i]
@@ -77,7 +77,7 @@ def test_strided_2d():
     return list(b)
 
 
-cdef double recursive_sum(double[::1] restrict a, Py_ssize_t n) noexcept:
+cdef double recursive_sum(double[::1] restrict a, Py_ssize_t n):
     if n == 0:
         return 0
     return a[n - 1] + recursive_sum(a, n - 1)
@@ -143,7 +143,7 @@ def test_opt_args(values=(1.0,)):
     return opt_args(a), opt_args(a, 3.0)
 
 
-cdef double varargs_sum(double[::1] restrict va_arr, int n, ...) noexcept:
+cdef double varargs_sum(double[::1] restrict va_arr, int n, ...):
     # The body of a varargs function cannot be moved into a separate inline function,
     # so the restrict data pointer is declared as a local variable instead.
     cdef double s = 0
@@ -176,7 +176,7 @@ ctypedef fused number:
     double
 
 
-cdef number fused_sum(number[::1] restrict a, number[::1] restrict out) noexcept:
+cdef number fused_sum(number[::1] restrict a, number[::1] restrict out):
     cdef Py_ssize_t i
     for i in range(a.shape[0]):
         out[0] += a[i]
@@ -197,11 +197,13 @@ def test_fused():
 
 cdef class Holder:
     cdef double factor
+    cdef double[::1] restrict b # warning: restrict is ignored
 
     def __init__(self, factor):
         self.factor = factor
+        self.b = array('d', [3.0])
 
-    cdef double scaled(self, double[::1] restrict a) noexcept:
+    cdef double scaled(self, double[::1] restrict a):
         return a[0] * self.factor
 
     def py_scaled(self, double[::1] restrict a):
@@ -211,6 +213,21 @@ cdef class Holder:
         """
         return self.scaled(a), a[0] * self.factor
 
+    def py_scaled2(self):
+        """
+        >>> Holder(2.0).py_scaled2()
+        (6.0, 6.0)
+        """
+        return self.scaled(self.b), self.b[0] * self.factor
+
+cdef test_local_variable_restrict():
+    """
+    >>> test_local_variable_restrict()
+    3
+    """
+    cdef int[::1] restrict a = array('i', [1, 2, 3]) # warning: restrict is ignored
+    cdef int[::1] restrict b = array('i', [2])       # warning: restrict is ignored
+    return a[0] + b[0]
 
 def none_argument(double[::1] restrict a=None):
     """
@@ -222,3 +239,13 @@ def none_argument(double[::1] restrict a=None):
     if a is None:
         return True
     return a[0]
+
+_WARNINGS = """
+200:4: Restrict qualifier of memoryview type is ignored in class attribute type
+228:18: Restrict qualifier of memoryview type is ignored in local variable type
+229:18: Restrict qualifier of memoryview type is ignored in local variable type
+
+26:4: 'cpdef_method' redeclared
+36:4: 'cpdef_cname_method' redeclared
+166:0: 'cpdef_function' redeclared
+"""
