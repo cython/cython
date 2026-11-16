@@ -29,6 +29,7 @@ jobs:
       PYTHON_VERSION: 3.x-dev
       CONFIGURE_ARGS: --with-pydebug
       SANITIZER_CFLAGS: ""
+      GCC_VERSION: 11
       PYTHON_GIL: ${{case(contains(inputs.sanitize, 'freethreading'), '0', '1')}}
 
     steps:
