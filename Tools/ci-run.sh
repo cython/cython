@@ -215,11 +215,7 @@ if [[ $PYTHON_VERSION == "graalpy"* ]]; then
   # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
   # JIT actually makes it faster! And reduces the number of cores each process uses.
   GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
-  if [[ $PYTHON_VERSION == "graalpy25.0" ]]; then
-    TEST_PARALLELISM=-j1
-  else
-    TEST_PARALLELISM=-j2
-  fi
+  TEST_PARALLELISM=-j2
 fi
 
 RUNTESTS_ARGS=""
