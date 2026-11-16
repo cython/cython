@@ -322,6 +322,58 @@ buffers are not accepted for non-const, writable views::
     myslice = a   # ERROR: requesting writable memory view from read-only buffer!
 
 
+.. _restrict_views:
+
+Non-overlapping views (``restrict``)
+------------------------------------
+
+.. versionadded:: 3.4
+
+When a function takes several memoryviews, the C compiler has to assume
+that their data buffers might overlap, so that writing through one view
+can change what another view reads.  This prevents it from keeping values
+in registers and often from vectorising loops.  For a few arrays, compilers
+may add a runtime overlap check, but with many arrays or indirect indexing
+they usually fall back to slow scalar code.
+
+A memoryview function argument can be declared ``restrict``
+(the C `restrict <https://en.cppreference.com/w/c/language/restrict>`_
+qualifier) to promise that its data is not accessed through any other
+argument while the function runs.  The qualifier goes between the type and
+the argument name, and can be combined with ``const``:
+
+.. literalinclude:: ../../examples/userguide/memoryviews/restrict.pyx
+
+In one measurement (GCC 14, ``-O2``), calling the function above from
+Python with 100,000 elements per array was about 2 times faster than the
+same code without ``restrict``.  With 1,000 elements, it was about
+15% faster.  How much you gain depends on the compiler, its
+options and the loop, so measure your own code.  If only two or three
+arrays are involved, there may be no difference at all.
+
+.. warning::
+
+    ``restrict`` is a promise to the C compiler, not something Cython
+    checks.  If the buffers of ``restrict`` arguments overlap, for example
+    when calling ``integrate(a, a, ...)`` or when passing two overlapping
+    slices of the same array, the behaviour is undefined and the function can silently
+    produce wrong results.
+
+``restrict`` has no effect in the following cases:
+
+* In ``def`` functions and methods.  Use a ``cdef`` or ``cpdef``
+  function instead.
+* On local variables and extension type attributes.  Cython ignores the
+  qualifier and emits a warning.
+* On arguments that are reassigned inside the function, or used inside a
+  closure (such as an inner function or a lambda).  Cython
+  accepts these declarations but does not apply the optimisation.
+
+Slices taken from a ``restrict`` argument inside the function (such as
+``a[1:]``) are derived from it.  Accessing the data through both the
+argument and such a slice is therefore allowed.
+
+
 Comparison to the old buffer support
 ====================================
 
