@@ -649,7 +649,8 @@ def sort_common_subsequences(items):
             items[new_pos] = item
 
 
-def unpack_string_to_character_literals(literal):
+@cython.cfunc
+def unpack_string_to_character_literals(literal) -> list:
     chars = []
     pos = literal.pos
     stype = literal.__class__
@@ -669,26 +670,31 @@ def flatten_parallel_assignments(input: list, output: list):
     #  sides into a list of equivalent assignments between the
     #  individual elements.  This transformation is applied
     #  recursively, so that nested structures get matched as well.
-    rhs = input[-1]
-    if (not (rhs.is_sequence_constructor or isinstance(rhs, ExprNodes.UnicodeNode))
-            or not sum([lhs.is_sequence_constructor for lhs in input[:-1]])):
+
+    *cascaded_lhs, rhs = input
+
+    if not any([lhs.is_sequence_constructor for lhs in cascaded_lhs]):
         output.append(input)
         return
 
-    complete_assignments = []
-
-    if rhs.is_sequence_constructor:
+    if rhs.is_sequence_constructor and not any([arg.is_starred for arg in rhs.args]):
+        # A starred RHS item has an unknown length, so it cannot be paired up at compile time.
         rhs_args = rhs.args
-    elif rhs.is_string_literal:
+    elif rhs.is_string_literal and isinstance(rhs, ExprNodes.UnicodeNode):
+        # Unpacking bytes literals should probably differ between language levels.
         rhs_args = unpack_string_to_character_literals(rhs)
+    else:
+        output.append(input)
+        return
 
     starred_targets: cython.Py_ssize_t
     lhs_size: cython.Py_ssize_t
     rhs_size: cython.Py_ssize_t = len(rhs_args)
     lhs_targets = [[] for _ in range(rhs_size)]
     starred_assignments = []
+    complete_assignments = []
 
-    for lhs in input[:-1]:
+    for lhs in cascaded_lhs:
         if not lhs.is_sequence_constructor:
             if lhs.is_starred:
                 error(lhs.pos, "starred assignment target must be in a list or tuple")
@@ -707,6 +713,9 @@ def flatten_parallel_assignments(input: list, output: list):
                   % (rhs_size, (rhs_size != 1) and 's' or ''))
             output.append([lhs,rhs])
             continue
+        elif starred_targets and lhs.args[-1].is_starred and lhs_size - 1 == rhs_size:
+            # Nothing is left for the starred target, the runtime unpacking gives it an empty list.
+            output.append([lhs, rhs])
         elif starred_targets:
             map_starred_assignment(lhs_targets, starred_assignments,
                                    lhs.args, rhs_args)
@@ -2402,11 +2411,11 @@ if VALUE is not None:
                     with CRITICAL_SECTION(self):
                         state = ({members})
                         _dict = getattr(self, '__dict__', None)
-                    if _dict is not None and _dict:
-                        state += (_dict,)
-                        use_setstate = True
-                    else:
-                        use_setstate = {any_notnone_members}
+                        if _dict is not None and _dict:
+                            state += (_dict,)
+                            use_setstate = True
+                        else:
+                            use_setstate = {any_notnone_members}
                     if use_setstate:
                         return {unpickle_func_name}, (type(self), {checksums[0]}, None), state
                     else:

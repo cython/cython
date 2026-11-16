@@ -382,3 +382,72 @@ def setcomp_augmented_starred_target(xs):
     s = set()
     s |= {x for x, *_ in xs}
     return s
+
+
+def unpack_starred_rhs(x, y):
+    """
+    >>> unpack_starred_rhs(1, [2, 3])
+    (1, 2, 3)
+    >>> unpack_starred_rhs(1, [2])  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ValueError: need more than 2 values to unpack
+    """
+    a, b, c = x, *y
+    return a, b, c
+
+
+def unpack_starred_rhs_same_length(x, y):
+    """
+    >>> unpack_starred_rhs_same_length(1, [2])
+    (1, 2)
+    """
+    a, b = x, *y
+    return a, b
+
+
+def unpack_only_starred_rhs(x, y):
+    """
+    >>> unpack_only_starred_rhs([], [1])
+    1
+    >>> unpack_only_starred_rhs([1], [2])  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ValueError: too many values to unpack
+    """
+    out, = *x, *y
+    return out
+
+
+def unpack_starred_both_sides(a, b, c):
+    """
+    >>> unpack_starred_both_sides(1, 2, [3, 4])
+    (1, [2, 3], 4)
+    """
+    x, *y, z = a, b, *c
+    return x, y, z
+
+
+def unpack_empty_star_at_end(a, b):
+    """
+    >>> unpack_empty_star_at_end(1, 2)
+    (1, 2, [])
+    """
+    x, y, *z = a, b
+    return x, y, z
+
+
+def unpack_empty_star_in_middle(a, b):
+    """
+    >>> unpack_empty_star_in_middle(1, 2)
+    (1, [], 2)
+    """
+    x, *y, z = a, b
+    return x, y, z
+
+
+def unpack_empty_tuple_target(x):
+    """
+    >>> unpack_empty_tuple_target(1)
+    1
+    """
+    a, () = x, ()
+    return a
