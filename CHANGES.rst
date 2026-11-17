@@ -41,6 +41,10 @@ Bugs fixed
   could yield integers instead of bytes objects as loop variable values.
   (Github issue :issue:`8103`)
 
+* Optimised comparisons of Python objects in ``nogil`` sections were not rejected,
+  although the generated comparison code requires the GIL.
+  (Github issue :issue:`7500`)
+
 Other changes
 -------------
 

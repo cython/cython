@@ -106,6 +106,22 @@ cdef int[:] main() nogil:
     cdef int[4] a = [1,2,3,4]
     return a
 
+cdef int nogil_comparisons(str s, dict d, set st, list lst, object obj) nogil:
+    cdef bint r = 0
+    r = (s == "a")
+    r = (s != "a")
+    r = (s in d)
+    r = (s not in st)
+    r = (s in lst)
+    r = (s in "abc")
+    if obj == obj:
+        r = 1
+    if obj < obj:
+        r = 1
+    if s is None:
+        r = 1
+    return r
+
 
 _ERRORS = u"""
 4:0: Function with Python return type cannot be declared nogil
@@ -181,4 +197,12 @@ _ERRORS = u"""
 103:21: Coercion from Python not allowed without the GIL
 103:21: Slicing Python object not allowed without gil
 107:11: Operation not allowed without gil
+111:11: Operation not allowed without gil
+112:11: Operation not allowed without gil
+113:11: Operation not allowed without gil
+114:11: Operation not allowed without gil
+115:11: Operation not allowed without gil
+116:11: Operation not allowed without gil
+117:11: Operation not allowed without gil
+119:11: Operation not allowed without gil
 """
