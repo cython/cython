@@ -1034,4 +1034,4 @@ See: :ref:`compiler-directives` for more information about this directive.
 
 .. _GIL: https://docs.python.org/dev/glossary.html#term-global-interpreter-lock
 .. _NumPy: https://docs.scipy.org/doc/numpy/reference/arrays.ndarray.html#memory-layout
-.. _example: https://docs.scipy.org/doc/numpy/reference/arrays.indexing.html
+.. _example: https://numpy.org/doc/stable/user/basics.indexing.html#dimensional-indexing-tools
