@@ -76,6 +76,17 @@ def for_in_mixed_literal_sequences():
     return int_float_list, bool_int_list
 
 
+def for_in_single_bytes_sequence():
+    """
+    >>> for_in_single_bytes_sequence()
+    [b'a', b'b']
+    """
+    l = []
+    for c in [b'a', b'b']:
+        l.append(c)
+    return l
+
+
 def listcomp_over_multiplied_constant_tuple():
     """
     >>> listcomp_over_multiplied_constant_tuple()

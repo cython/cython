@@ -697,23 +697,24 @@ def loop_over_character_list():
 
 
 @cython.test_assert_path_exists(
-    "//ForFromStatNode",
-    "//ForFromStatNode//NameNode[@name = 'c_ch']",
-    "//ForInStatNode",
+    "//ForInStatNode//NameNode[@name = 'c_ch']",
     "//ForInStatNode//NameNode[@name = 'py_ch']",
+)
+@cython.test_fail_if_path_exists(
+    "//ForFromStatNode",
 )
 def loop_over_single_bytes_tuple():
     """
     >>> loop_over_single_bytes_tuple()
-    unsigned char
+    bytes object
     bytes object
     """
     for c_ch in (b'a', b'\x0a', b' '):
-        assert c_ch > 0
+        assert c_ch in (b'a', b'\x0a', b' ')
     print(typeof(c_ch))
 
     for py_ch in (b'a', b'\x0a', b' ', None):
-        assert py_ch or not py_ch
+        assert py_ch in (b'a', b'\x0a', b' ', None)
     print(typeof(py_ch))
 
 

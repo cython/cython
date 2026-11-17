@@ -37,6 +37,10 @@ Bugs fixed
   ``123`` -> ``123.0`` or ``True`` -> ``1``.
   (Github issue :issue:`8103`)
 
+* Iteration over literal sequences of one-character byte strings, e.g. ``[b'a', b'b']``,
+  could yield integers instead of bytes objects as loop variable values.
+  (Github issue :issue:`8103`)
+
 Other changes
 -------------
 
