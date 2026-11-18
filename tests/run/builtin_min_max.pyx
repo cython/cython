@@ -310,6 +310,109 @@ def test_maxN():
     print max(my_int, my_int, 2, my_int, 0, my_pyint, my_int, len(my_list))
 
 
+def _loud(x):
+    print(x)
+    return x
+
+
+@cython.test_assert_path_exists("//CondExprNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'max']")
+def max_evaluation_order():
+    """
+    >>> max_evaluation_order()
+    1
+    2
+    3
+    3
+    """
+    print(max(_loud(1), _loud(2), _loud(3)))
+
+
+@cython.test_assert_path_exists("//CondExprNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'min']")
+def min_evaluation_order():
+    """
+    >>> min_evaluation_order()
+    3
+    2
+    1
+    1
+    """
+    print(min([_loud(3), _loud(2), _loud(1)]))
+
+
+cdef int _loud_int(int x):
+    print(x)
+    return x
+
+
+@cython.test_assert_path_exists("//CondExprNode")
+def max_evaluation_order_typed():
+    """
+    >>> max_evaluation_order_typed()
+    1
+    2
+    2
+    """
+    print(max(_loud_int(1), _loud_int(2)))
+
+
+class Cmp:
+    def __init__(self, value):
+        self._value = value
+
+    def __repr__(self):
+        return f"Cmp({self._value})"
+
+    def __lt__(self, other):
+        print(f"{self._value} < {other._value}")
+        return self._value < other._value
+
+    def __gt__(self, other):
+        print(f"{self._value} > {other._value}")
+        return self._value > other._value
+
+    def __eq__(self, other):
+        print(f"{self._value} == {other._value}")
+        return self._value == other._value
+
+
+@cython.test_assert_path_exists("//CondExprNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'min']")
+def min_evaluation_order_cmp():
+    """
+    >>> print(min([Cmp(4), Cmp(3), Cmp(2), Cmp(1)]))
+    3 < 4
+    2 < 3
+    1 < 2
+    Cmp(1)
+    >>> min_evaluation_order_cmp()
+    3 < 4
+    2 < 3
+    1 < 2
+    Cmp(1)
+    """
+    print(min([Cmp(4), Cmp(3), Cmp(2), Cmp(1)]))
+
+
+@cython.test_assert_path_exists("//CondExprNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'max']")
+def max_evaluation_order_cmp():
+    """
+    >>> print(max([Cmp(4), Cmp(3), Cmp(2), Cmp(1)]))
+    3 > 4
+    2 > 4
+    1 > 4
+    Cmp(4)
+    >>> max_evaluation_order_cmp()
+    3 > 4
+    2 > 4
+    1 > 4
+    Cmp(4)
+    """
+    print(max([Cmp(4), Cmp(3), Cmp(2), Cmp(1)]))
+
+
 '''
 # ticket 772
 # FIXME: signed vs. unsigned fails to safely handle intermediate results
