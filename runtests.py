@@ -554,7 +554,7 @@ def parse_tags(filepath):
             if parsed is not None:
                 tag, values = parsed.groups()
                 if tag not in ('mode', 'tag', 'ticket', 'cython', 'distutils', 'preparse'):
-                    if tag in ('coding', 'encoding'):
+                    if tag in ('coding', 'encoding', 'NOTE', 'FIXME', 'ok'):
                         continue
                     if tag == 'tags':
                         raise RuntimeError("test tags use the 'tag' directive, not 'tags' (%s)" % filepath)
