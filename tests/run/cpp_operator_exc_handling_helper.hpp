@@ -163,36 +163,36 @@ public:
     return t;
   }
   wrapped_int operator+=(wrapped_int &other) {
-    if (other.val == 4) {
-      throw std::invalid_argument("tried to add 4");
+    if (other.val == 5) {
+      throw std::invalid_argument("tried to add 5");
     }
     this->val += other.val;
     return *this;
   }
   wrapped_int operator-=(wrapped_int &other) {
-    if (other.val == 4) {
-      throw std::invalid_argument("tried to add 4");
+    if (other.val == 5) {
+      throw std::invalid_argument("tried to add 5");
     }
     this->val -= other.val;
     return *this;
   }
   wrapped_int operator*=(wrapped_int &other) {
-    if (other.val == 4) {
-      throw std::invalid_argument("tried to add 4");
+    if (other.val == 5) {
+      throw std::invalid_argument("tried to add 5");
     }
     this->val *= other.val;
     return *this;
   }
   wrapped_int operator/=(wrapped_int &other) {
-    if (other.val == 4) {
-      throw std::invalid_argument("tried to add 4");
+    if (other.val == 5) {
+      throw std::invalid_argument("tried to add 5");
     }
     this->val /= other.val;
     return *this;
   }
   wrapped_int operator%=(wrapped_int &other) {
-    if (other.val == 4) {
-      throw std::invalid_argument("tried to add 4");
+    if (other.val == 5) {
+      throw std::invalid_argument("tried to add 5");
     }
     this->val %= other.val;
     return *this;
