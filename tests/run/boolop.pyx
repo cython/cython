@@ -49,3 +49,89 @@ def non_simple_values(obj1, obj2, obj3, obj4):
     or_and_or = (obj1 + obj2 or obj3 + obj4) and (obj1 + obj4 or obj2 + obj4)
     or1_and_or = (or1 and (obj1 + obj4 or obj2 + obj4))
     return (and1, or1, and_or, or_and, and_or_and, and1_or_and, or_and_or, or1_and_or)
+
+
+def nested_c_values_condexpr_GH7472(int i, int j, int k, bint c):
+    """
+    >>> nested_c_values_condexpr_GH7472(1, 0, 5, True)
+    5
+    >>> nested_c_values_condexpr_GH7472(1, 0, 0, True)
+    0
+    >>> nested_c_values_condexpr_GH7472(0, 3, 5, True)
+    False
+    >>> nested_c_values_condexpr_GH7472(1, 3, 5, False) is None
+    True
+    """
+    # "j or k" is a C int and/or nested inside a Python object and/or.
+    return (i > 0 and (j or k)) if c else None
+
+
+def nested_pointers_bool_context(obj, bint use_null):
+    """
+    >>> nested_pointers_bool_context(0, False)
+    (1, 0)
+    >>> nested_pointers_bool_context(0, True)
+    (0, 0)
+    >>> nested_pointers_bool_context(1, True)
+    (1, 0)
+    >>> nested_pointers_bool_context(1, False)
+    (1, 1)
+    """
+    # Nested pointer operands cannot become Python objects,
+    # but they are fine when the whole expression is only tested for truth.
+    cdef int value = 1
+    cdef int *ptr1 = &value
+    cdef int *ptr2 = NULL
+    if use_null:
+        ptr1 = NULL
+    or_result = and_result = 0
+    if obj or (ptr2 or ptr1):
+        or_result = 1
+    if obj and (ptr1 and ptr1[0]):
+        and_result = 1
+    return or_result, and_result
+
+
+def nested_null_pointer_bool_context(obj, bint use_string):
+    """
+    >>> nested_null_pointer_bool_context(0, True)
+    (1, 0)
+    >>> nested_null_pointer_bool_context(0, False)
+    (0, 0)
+    >>> nested_null_pointer_bool_context(1, False)
+    (1, 0)
+    """
+    # "s or NULL" spans to char*, but its NULL operand cannot become a Python object.
+    cdef char *s = NULL
+    if use_string:
+        s = b"abc"
+    or_result = and_result = 0
+    if obj or (s or NULL):
+        or_result = 1
+    if obj and (s and NULL):
+        and_result = 1
+    return or_result, and_result
+
+
+cdef enum _NestedMode:
+    NESTED_OFF = 0
+    NESTED_ON = 1
+
+
+def nested_enum_in_float_context(double ratio, bint on, int count):
+    """
+    >>> nested_enum_in_float_context(0.5, True, 4)
+    True
+    >>> nested_enum_in_float_context(0.0, True, 0)
+    False
+    >>> nested_enum_in_float_context(0.0, False, 3)
+    False
+    >>> nested_enum_in_float_context(1.5, False, 0)
+    True
+    """
+    # "mode and count" spans to a C int and the whole expression to a C double,
+    # but the enum operand cannot be assigned to a double directly.
+    cdef _NestedMode mode = NESTED_ON if on else NESTED_OFF
+    if mode and count or ratio:
+        return True
+    return False
