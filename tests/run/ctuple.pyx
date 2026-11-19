@@ -190,6 +190,53 @@ def cast_to_ctuple(*o):
     return x, y
 
 
+cdef int cast_side_effect_calls = 0
+
+cdef (double, int) cast_side_effect(double x, int y):
+    global cast_side_effect_calls
+    cast_side_effect_calls += 1
+    return x, y
+
+
+def cast_ctuple_to_ctuple(double x, double y):
+    """
+    >>> cast_ctuple_to_ctuple(1.5, 2.75)
+    (1, 2)
+    """
+    cdef (double, double) xy = (x, y)
+    cdef (int, int) ab = <(int, int)>xy
+    return ab
+
+
+def cast_ctuple_to_ctuple_pure(double x, double y):
+    """
+    >>> cast_ctuple_to_ctuple_pure(1.5, 2.75)
+    (1, 2)
+    """
+    cdef (double, double) xy = (x, y)
+    return cython.cast((int, int), xy)
+
+
+def cast_ctuple_to_ctuple_once(double x, int y):
+    """
+    >>> cast_ctuple_to_ctuple_once(1.5, 2)
+    ((1, 2.0), 1)
+    """
+    global cast_side_effect_calls
+    cast_side_effect_calls = 0
+    result = <(int, double)>cast_side_effect(x, y)
+    return result, cast_side_effect_calls
+
+
+def cast_nested_ctuple(double x, double y, double z):
+    """
+    >>> cast_nested_ctuple(1.5, 2.5, 3.5)
+    ((1, 2), 3)
+    """
+    cdef ((double, double), double) t = ((x, y), z)
+    return <((int, int), int)>t
+
+
 @cython.infer_types(True)
 def test_type_inference():
     """
