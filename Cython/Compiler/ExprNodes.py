@@ -14257,19 +14257,7 @@ class CmpNode:
     special_bool_cmp_function = None
     special_bool_cmp_utility_code = None
     special_bool_extra_args = []
-
-    def needs_gil(self):
-        # Optimised comparisons call into the Python C-API even when their
-        # result is a C bint, so they require the GIL.  "is" comparisons and
-        # memoryview None checks only compare pointers, and "in" checks on
-        # C pointers are transformed into C loops.
-        if self.special_bool_cmp_function:
-            return True
-        if self.operator in ('is', 'is_not') or self.is_ptr_contains():
-            return False
-        if getattr(self, 'is_memslice_nonecheck', False):
-            return False
-        return self.has_python_operands()
+    is_memslice_nonecheck = False
 
     def infer_type(self, env):
         # TODO: Actually implement this (after merging with -unstable).
@@ -14425,11 +14413,15 @@ class CmpNode:
               (op, operand1.type, operand2.type))
 
     def is_python_comparison(self):
-        return (self.special_bool_cmp_function is None
-            and not self.is_ptr_contains()
-            and (self.has_python_operands()
-                 or (self.cascade and self.cascade.is_python_comparison())
-                 or self.operator in ('in', 'not_in')))
+        if self.special_bool_cmp_function:
+            return True
+        if self.is_memslice_nonecheck or self.is_ptr_contains():
+            return False
+        return (
+            (self.operator not in ('is', 'is_not')
+             and (self.has_python_operands() or self.operator in ('in', 'not_in')))
+            or bool(self.cascade and self.cascade.is_python_comparison())
+        )
 
     def coerce_operands_to(self, dst_type, env):
         operand2 = self.operand2
@@ -14680,7 +14672,6 @@ class PrimaryCmpNode(ExprNode, CmpNode):
 
     cascade = None
     coerced_operand2 = None
-    is_memslice_nonecheck = False
 
     def infer_type(self, env):
         type1 = self.operand1.infer_type(env)
@@ -14838,7 +14829,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             or self.operand2.type.is_pyobject)
 
     def nogil_check(self, env):
-        if self.needs_gil():
+        if self.is_python_comparison():
             self.gil_error()
         else:
             super().nogil_check(env)
@@ -14951,10 +14942,6 @@ class CascadedCmpNode(Node, CmpNode):
 
     def has_python_operands(self):
         return self.operand2.type.is_pyobject
-
-    def nogil_check(self, env):
-        if self.needs_gil():
-            self.gil_error()
 
     def is_cpp_comparison(self):
         # cascaded comparisons aren't currently implemented for c++ classes.

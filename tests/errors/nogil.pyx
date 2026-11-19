@@ -118,7 +118,11 @@ cdef int nogil_comparisons(str s, dict d, set st, list lst, object obj) nogil:
         r = 1
     if obj < obj:
         r = 1
+    if s is s == "a":
+        r = 1
     if s is None:
+        r = 1
+    if s is s is None:
         r = 1
     return r
 
@@ -205,4 +209,5 @@ _ERRORS = u"""
 116:11: Operation not allowed without gil
 117:11: Operation not allowed without gil
 119:11: Operation not allowed without gil
+121:9: Operation not allowed without gil
 """
