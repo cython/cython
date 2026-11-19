@@ -2107,11 +2107,12 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
                 # leave this to Python
                 return node
 
-        cascaded_nodes = list(map(UtilNodes.ResultRefNode, args[1:]))
+        # Evaluate all arguments from left to right before comparing them.
+        cascaded_nodes = list(map(UtilNodes.ResultRefNode, args))
 
         last_result = args[0]
-        for arg_node in cascaded_nodes:
-            result_ref = UtilNodes.ResultRefNode(last_result)
+        first_result_ref = result_ref = cascaded_nodes[0]
+        for arg_node in cascaded_nodes[1:]:
             last_result = ExprNodes.CondExprNode(
                 arg_node.pos,
                 true_val = arg_node,
@@ -2123,7 +2124,10 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
                     operand2 = result_ref,
                     )
                 )
-            last_result = UtilNodes.EvalWithTempExprNode(result_ref, last_result)
+            # All intermediate comparison results must be evaluated before the following cascade.
+            if result_ref is not first_result_ref:
+                last_result = UtilNodes.EvalWithTempExprNode(result_ref, last_result)
+            result_ref = UtilNodes.ResultRefNode(last_result)
 
         for ref_node in cascaded_nodes[::-1]:
             last_result = UtilNodes.EvalWithTempExprNode(ref_node, last_result)
