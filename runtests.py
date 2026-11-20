@@ -2958,7 +2958,7 @@ def generate_shared_utility(options):
                 sys.executable, 'cythonize.py', '-bi', shared_utility_c_file
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf8')
         if compilation_result.returncode != 0:
-            raise RuntimeError(f"Shared utility compilation failed:\n{compilation_result.stdout}")
+            raise RuntimeError(f"Shared utility compilation failed:\n{compilation_result.stderr}")
 
         sys.path.append(workdir)
         yield workdir
