@@ -5938,11 +5938,6 @@ class CClassDefNode(ClassDefNode):
                     break
                 base_type = base_type.base_type
 
-            if type.has_sequence_flag or type.has_mapping_flag:
-                code.globalstate.use_utility_code(
-                        UtilityCode.load_cached("ApplySequenceOrMappingFlag", "ExtensionTypes.c"))
-                code.put_error_if_neg(
-                    entry.pos, f"__Pyx_ApplySequenceOrMappingFlag({typeptr_cname}, {type.has_sequence_flag:d})")
             code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             # FIXME: these still need to get initialised even with the limited-API
             for slot in TypeSlots.get_slot_table(code.globalstate.directives):
@@ -5955,6 +5950,12 @@ class CClassDefNode(ClassDefNode):
             code.put_error_if_neg(entry.pos, "__Pyx_PyType_Ready(%s)" % typeptr_cname)
             code.putln("#endif")
             code.put_make_object_deferred(f"(PyObject*){typeptr_cname}")
+
+            if type.has_sequence_flag or type.has_mapping_flag:
+                code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("ApplySequenceOrMappingFlag", "ExtensionTypes.c"))
+                code.put_error_if_neg(
+                    entry.pos, f"__Pyx_ApplySequenceOrMappingFlag({typeptr_cname}, {type.has_sequence_flag:d})")
 
             # Use specialised attribute lookup for types with generic lookup but no instance dict.
             getattr_slot_func = TypeSlots.get_slot_code_by_name(scope, 'tp_getattro')
