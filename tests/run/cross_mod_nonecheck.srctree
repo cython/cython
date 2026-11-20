@@ -1,0 +1,49 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import annotated_func_caller; annotated_func_caller.test()"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+    ext_modules = cythonize("*.py"),
+    )
+
+######## annotated_func_impl.pxd ########
+cdef class T:
+    cdef Py_ssize_t attr
+
+cpdef func(T a)
+
+######## annotated_func_impl.py ########
+#cython: nonecheck=True
+
+import cython
+
+@cython.cclass
+class T:
+    def __init__(self):
+        self.attr = 0
+
+@cython.ccall
+def func(a: T):
+    return a.attr
+
+######## annotated_func_caller.pxd ########
+cimport annotated_func_impl
+
+######## annotated_func_caller.py ########
+#cython: nonecheck=True
+
+import cython
+import annotated_func_impl
+
+@cython.ccall
+def test():
+    try:
+        annotated_func_impl.func(None)
+    except:
+        pass
+    else:
+        assert 0, 'annotated_func_impl.func(None) needs to raise an exception'
