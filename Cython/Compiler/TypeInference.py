@@ -440,7 +440,7 @@ class SimpleAssignmentTypeInferer:
 
         def infer_name_node_type(node):
             types = [assmt.inferred_type for assmt in node.cf_state]
-            if not types:
+            if not types or not all(types):
                 node_type = py_object_type
             else:
                 entry = node.entry
