@@ -237,6 +237,7 @@ _directive_defaults = {
     'cpp_locals': False,  # uses std::optional for C++ locals, so that they work more like Python locals
     'legacy_implicit_noexcept': False,
     'c_compile_guard': '',
+    'safe_property_autocomplete': False,
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
     'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"
