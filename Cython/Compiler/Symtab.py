@@ -98,7 +98,6 @@ class Entry:
     # is_cpp_class     boolean    Is a C++ class
     # is_const         boolean    Is a constant
     # is_property      boolean    Is a property of an extension type:
-    # doc_cname        string or None  C const holding the docstring
     # getter_cname     string          C func for getting property
     # setter_cname     string          C func for setting or deleting property
     # is_cproperty     boolean         Is an inline property of an external type
@@ -114,7 +113,6 @@ class Entry:
     # pos              position   Source position where declared
     # namespace_cname  string     If is_pyglobal, the C variable
     #                               holding its home namespace
-    # pymethdef_cname  string     PyMethodDef structure
     # signature        Signature  Arg & return types for Python func
     # as_variable      Entry      Alternative interpretation of extension
     #                               type name or builtin C function as a variable
@@ -186,7 +184,6 @@ class Entry:
     is_const = 0
     is_property = 0
     is_cproperty = 0
-    doc_cname = None
     getter_cname = None
     setter_cname = None
     is_self_arg = 0
@@ -899,13 +896,11 @@ class Scope:
     def declare_lambda_function(self, lambda_name, pos):
         # Add an entry for an anonymous Python function.
         func_cname = self.mangle(Naming.lambda_func_prefix + 'funcdef_', lambda_name)
-        pymethdef_cname = self.mangle(Naming.lambda_func_prefix + 'methdef_', lambda_name)
         qualified_name = self.qualify_name(lambda_name)
 
         entry = self.declare(None, func_cname, py_object_type, pos, 'private')
         entry.name = EncodedString(lambda_name)
         entry.qualified_name = qualified_name
-        entry.pymethdef_cname = pymethdef_cname
         entry.func_cname = func_cname
         entry.signature = pyfunction_signature
         entry.is_anonymous = True
@@ -1377,7 +1372,6 @@ class ModuleScope(Scope):
     # #module_dict_cname   string             C name of module dict object
     # method_table_cname   string             C name of method table
     # doc                  string             Module doc string
-    # doc_cname            string             C name of module doc string
     # utility_code_list    [UtilityCode]      Queuing utility codes for forwarding to Code.py
     # c_includes           {key: IncludeCode} C headers or verbatim code to be generated
     #                                         See process_include() for more documentation
@@ -1418,7 +1412,6 @@ class ModuleScope(Scope):
         self.module_dict_cname = Naming.moddict_cname
         self.method_table_cname = Naming.methtable_cname
         self.doc = ""
-        self.doc_cname = Naming.moddoc_cname
         self.utility_code_list = []
         self.module_entries = {}
         self.c_includes = {}
