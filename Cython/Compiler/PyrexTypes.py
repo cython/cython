@@ -1846,6 +1846,13 @@ uncachable_builtins = frozenset([
     '_',  # e.g. used by gettext
 ])
 
+class TypingType(PyObjectType):
+    is_builtin_type = 0
+    base_type = None
+    module_name = '__builtin__'
+
+    def __init__(self, name):
+        self.name = name
 
 class BuiltinObjectType(PyObjectType):
     #  objstruct_cname  string           Name of PyObject struct
