@@ -8,13 +8,14 @@ Note that this module is deprecated.  Use cythonize() instead.
 
 __revision__ = "$Id:$"
 
-import sys
+import logging
 import os
+import sys
+import sysconfig
+
 from distutils.errors import DistutilsPlatformError
 from distutils.dep_util import newer, newer_group
-from distutils import log
 from distutils.command import build_ext as _build_ext
-from distutils import sysconfig
 
 
 # FIXME: the below does not work as intended since importing 'Cython.Distutils' already

@@ -255,12 +255,12 @@ x = sin(0.0)
 
 
             new_log = MockLog()
-            old_log = IpythonMagic.distutils.log
+            old_log = IpythonMagic.logging
             try:
-                IpythonMagic.distutils.log = new_log
+                IpythonMagic.logging = new_log
                 yield new_log
             finally:
-                IpythonMagic.distutils.log = old_log
+                IpythonMagic.logging = old_log
 
         ip = self._ip
         with mock_distutils() as verbose_log:
