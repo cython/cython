@@ -8032,28 +8032,37 @@ class AttributeNode(ExprNode):
     def type_dependencies(self, env):
         return self.obj.type_dependencies(env)
 
+    analysed = False
+
+    def _is_bound_cmethod(self, obj_type):
+        """Return whether this attribute node refers to an un-coerced bound C/builtin method."""
+        return bool(
+            (obj_type and obj_type.is_builtin_type and self.type.is_cfunction)
+            or (self.entry and self.entry.is_cmethod)
+        )
+
     def infer_type(self, env):
         # FIXME: this is way too redundant with analyse_types()
-        node = self.analyse_as_cimported_attribute_node(env, target=False)
-        if node is not None:
-            if node.entry.type and node.entry.type.is_cfunction:
-                # special-case - function converted to pointer
-                return PyrexTypes.CPtrType(node.entry.type)
-            else:
+        if self.analysed:
+            # Do not re-run analyse_attribute() after analyse_types()/coerce_to(),
+            # as coerce_to(py_object_type) switches cpdef methods to py attributes in place.
+            obj_type = self.obj.type
+        else:
+            node = self.analyse_as_cimported_attribute_node(env, target=False)
+            if node is not None:
+                if node.entry.type and node.entry.type.is_cfunction:
+                    # special-case - function converted to pointer
+                    return PyrexTypes.CPtrType(node.entry.type)
+                else:
+                    return node.entry.type
+            node = self.analyse_as_type_attribute(env)
+            if node is not None:
                 return node.entry.type
-        node = self.analyse_as_type_attribute(env)
-        if node is not None:
-            return node.entry.type
-        obj_type = self.obj.infer_type(env)
-        self.analyse_attribute(env, obj_type=obj_type)
-        if obj_type.is_builtin_type and self.type.is_cfunction:
-            # special case: C-API replacements for C methods of
-            # builtin types cannot be inferred as C functions as
-            # that would prevent their use as bound methods
-            return py_object_type
-        elif self.entry and self.entry.is_cmethod:
-            # special case: bound methods should not be inferred
-            # as their unbound method types
+            obj_type = self.obj.infer_type(env)
+            self.analyse_attribute(env, obj_type=obj_type)
+        if self._is_bound_cmethod(obj_type):
+            # special case: C-API replacements for C methods of builtin types and
+            # bound cmethods cannot be inferred as unbound C functions
             return py_object_type
         return self.type
 
@@ -8069,6 +8078,8 @@ class AttributeNode(ExprNode):
         return node
 
     def analyse_types(self, env, target = 0):
+        if self.analysed:
+            return self
         if not self.type:
             self.type = PyrexTypes.error_type  # default value if it isn't analysed successfully
         self.initialized_check = env.directives['initializedcheck']
@@ -8082,6 +8093,7 @@ class AttributeNode(ExprNode):
             node.entry.used = True
         if node.is_attribute:
             node.wrap_obj_in_nonecheck(env)
+            node.analysed = True
         return node
 
     def analyse_as_cimported_attribute_node(self, env, target):
@@ -9245,7 +9257,8 @@ class TupleNode(SequenceNode):
                     arg.starred_expr_allowed_here = True
                 self.args[i] = arg.analyse_types(env)
         if (not self.mult_factor and
-                not any((arg.is_starred or arg.type.is_pyobject or arg.type.is_memoryviewslice or arg.type.is_fused)
+                not any((arg.is_starred or arg.type.is_pyobject or arg.type.is_memoryviewslice or arg.type.is_fused
+                         or (isinstance(arg, AttributeNode) and arg._is_bound_cmethod(arg.obj.type)))
                         for arg in self.args)):
             self.type = env.declare_tuple_type(self.pos, (arg.type for arg in self.args)).type
             self.is_temp = 1
