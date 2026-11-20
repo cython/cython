@@ -32,3 +32,6 @@ cpp_template_subclasses
 
 # MSVC lacks "complex.h"
 complex_numbers_cmath_T2891
+
+# MSVC requires extra flags for C11 atomics
+c_stdatomic
