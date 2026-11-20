@@ -434,6 +434,8 @@ Cython supports ``const``, ``volatile`` and ``restrict`` `C type qualifiers <htt
 
         .. literalinclude:: ../../examples/userguide/language_basics/type_qualifiers.pyx
 
+Memoryview arguments can also be declared ``restrict``, e.g.
+``double[::1] restrict x``.  See :ref:`restrict_views`.
 
 Similar to pointers Cython supports shortcut types that can be used in pure python mode. The following table shows several examples:
 

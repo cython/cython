@@ -668,6 +668,30 @@ We can have substantial speed gains for minimal effort:
 We're now 7558 times faster than the pure Python version and 11.1 times faster
 than NumPy!
 
+Promising that arrays do not overlap
+====================================
+
+Since ``array_1``, ``array_2`` and ``result_view`` could, in principle, point
+into the same memory, the C compiler has to be careful when it reorders or
+vectorises the loop.  If you know that the arrays never overlap, you can
+promise this with the ``restrict`` qualifier on memoryview arguments of a
+``cdef`` or ``cpdef`` function:
+
+.. code-block:: cython
+
+    cdef void compute_kernel(const int[:, ::1] restrict array_1,
+                             const int[:, ::1] restrict array_2,
+                             int[:, ::1] restrict result,
+                             int a, int b, int c) noexcept nogil:
+        ...
+
+For this function, ``restrict`` makes no measurable difference, because with
+only three arrays the C compiler can check for overlap at runtime and still
+vectorise the loop.  It pays off in loops that use many arrays, where it can
+make the code run about twice as fast.  Passing overlapping arrays to
+``restrict`` arguments gives wrong results.  See :ref:`restrict_views` for
+details.
+
 Where to go from here?
 ======================
 
