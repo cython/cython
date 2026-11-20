@@ -356,7 +356,7 @@ class IterationTransform(Visitor.EnvTransform):
                 return self._transform_reversed_iteration(node, iterable)
 
         # range() iteration?
-        if Options.convert_range and 1 <= arg_count <= 3 and (
+        if Options.options_in_thread.convert_range and 1 <= arg_count <= 3 and (
                 iterable.self is None and
                 function.is_name and function.name in ('range', 'xrange') and
                 function.entry and function.entry.is_builtin):
