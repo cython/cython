@@ -5943,8 +5943,7 @@ class CClassDefNode(ClassDefNode):
                         UtilityCode.load_cached("ApplySequenceOrMappingFlag", "ExtensionTypes.c"))
                 code.put_error_if_neg(
                     entry.pos, f"__Pyx_ApplySequenceOrMappingFlag({typeptr_cname}, {type.has_sequence_flag:d})")
-            code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
-            # FIXME: these still need to get initialised even with the limited-API
+            code.putln("#if !CYTHON_USE_TYPE_SPECS")
             for slot in TypeSlots.get_slot_table(code.globalstate.directives):
                 slot.generate_dynamic_init_code(scope, code)
             code.putln("#endif")
