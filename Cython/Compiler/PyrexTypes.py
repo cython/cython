@@ -3961,10 +3961,18 @@ class CFuncType(CType):
         return '(%s)' % s
 
     def specialize(self, values):
-        result = CFuncType(self.return_type.specialize(values),
+        return_type = self.return_type.specialize(values)
+        exception_value = self.exception_value
+        if self.return_type.is_fused and isinstance(exception_value, CFuncType.ExceptionValue):
+            exception_value = CFuncType.ExceptionValue(
+                exception_value.python_value, exception_value.c_repr, return_type
+            )
+        # After cheching the error against all possible types, now it's being retargetted at
+        # this specialization's concrete return type. So C code generation doesn't break.
+        result = CFuncType(return_type,
                            [arg.specialize(values) for arg in self.args],
                            has_varargs = self.has_varargs,
-                           exception_value = self.exception_value,
+                           exception_value = exception_value,
                            exception_check = self.exception_check,
                            calling_convention = self.calling_convention,
                            nogil = self.nogil,
@@ -3974,7 +3982,6 @@ class CFuncType(CType):
                            is_const_method = self.is_const_method,
                            is_static_method = self.is_static_method,
                            templates = self.templates)
-
         result.from_fused = self.is_fused
         return result
 
