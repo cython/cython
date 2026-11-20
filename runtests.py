@@ -547,8 +547,6 @@ def parse_tags(filepath):
                 # ignore BOM-like bytes and whitespace
                 line = line.lstrip(UTF8_BOM_BYTES).strip()
                 if not line:
-                    if tags:
-                        break  # assume all tags are in one block
                     continue
                 if line[0] != '#':
                     break
@@ -556,7 +554,7 @@ def parse_tags(filepath):
             if parsed is not None:
                 tag, values = parsed.groups()
                 if tag not in ('mode', 'tag', 'ticket', 'cython', 'distutils', 'preparse'):
-                    if tag in ('coding', 'encoding'):
+                    if tag in ('coding', 'encoding', 'NOTE', 'FIXME', 'ok'):
                         continue
                     if tag == 'tags':
                         raise RuntimeError("test tags use the 'tag' directive, not 'tags' (%s)" % filepath)
