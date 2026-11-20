@@ -3633,6 +3633,11 @@ class CreateClosureClasses(CythonTransform):
         while cscope.is_py_class_scope or cscope.is_c_class_scope:
             cscope = cscope.outer_scope
 
+        if from_closure and getattr(cscope, 'scope_class', None) is None:
+            # The enclosing function never got a closure class (e.g. closures
+            # inside cpdef functions, which already report an error).
+            return
+
         if not from_closure and (self.path or inner_node):
             if not inner_node:
                 if not node.py_cfunc_node:
