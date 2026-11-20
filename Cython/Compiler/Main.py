@@ -18,7 +18,7 @@ if sys.version_info[:2] < (3, 9):
 # import Parsing
 from . import Errors
 from .StringEncoding import EncodedString
-from .Scanning import PyrexScanner, FileSourceDescriptor
+from .Scanning import PyrexScanner, FileSourceDescriptor, IncludeFileSourceDescriptor
 from .Errors import PyrexError, CompileError, error, warning
 from .Symtab import ModuleScope
 from .. import Utils
@@ -320,6 +320,21 @@ class Context:
         if not path:
             error(pos, "'%s' not found" % filename)
         return path
+
+    def find_include_file_source(self, filename, pos):
+        path = self.find_include_file(filename, pos)
+        if not path:
+            return None
+
+        # Local includes inherit the directory from the source's displayed path.
+        # Otherwise, use the include name relative to the search directory.
+        source = pos[0]
+        local_path = os.path.join(os.path.dirname(source.filename), filename)
+        if path == local_path:
+            description = os.path.join(os.path.dirname(source.get_relative_path()), filename)
+        else:
+            description = filename
+        return IncludeFileSourceDescriptor(path, os.path.normpath(description))
 
     def search_include_directories(self, qualified_name,
                                    suffix=None, source_pos=None, include=False, sys_path=False, source_file_path=None):
