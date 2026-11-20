@@ -34,6 +34,20 @@ def for_in_list():
     """
 
 
+def for_in_seq_subtype():
+    """
+    >>> class PyListSubclass(list): pass
+
+    >>> for_in_pyiter(PyListSubclass([1,2,3,4,5]))
+    [1, 2, 3, 4, 5]
+
+    >>> class PyTupleSubclass(tuple): pass
+
+    >>> for_in_pyiter(PyTupleSubclass([1,2,3,4,5]))
+    [1, 2, 3, 4, 5]
+    """
+
+
 @cython.test_assert_path_exists('//TupleNode//IntNode')
 @cython.test_fail_if_path_exists('//ListNode//IntNode')
 def for_in_literal_list():

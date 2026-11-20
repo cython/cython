@@ -11,17 +11,15 @@ import cython
 
 DEFAULT_TIMER = time.perf_counter
 
+seq_type = cython.fused_type(tuple, list, object)
 
-def _single_run(to_unpack, iterations: cython.long):
-    x: cython.long
-    y: cython.long
-
+def _single_run(to_unpack: seq_type, iterations: list):
     # Unpack to C integers
     c: cython.int
     f: cython.long
     h: cython.size_t
 
-    for y in range(iterations):
+    for y in iterations:
         a, b, c, d, e, f, g, h, i, j = to_unpack
         a, b, c, d, e, f, g, h, i, j = to_unpack
         a, b, c, d, e, f, g, h, i, j = to_unpack
@@ -82,11 +80,14 @@ def _single_run(to_unpack, iterations: cython.long):
         a, b, c, d, e, f, g, h, i, j = to_unpack
         a, b, c, d, e, f, g, h, i, j = to_unpack
 
+
+bench_func = _single_run[object] if cython.compiled else _single_run
 
 @cython.cfunc
-def do_unpacking(iterations: cython.long, to_unpack, timer=DEFAULT_TIMER):
+def do_unpacking(iterations: cython.long, to_unpack, timer=DEFAULT_TIMER, bench_func=bench_func):
+    loop = [None] * iterations
     t0 = timer()
-    _single_run(to_unpack, iterations)
+    bench_func(to_unpack, loop)
     t = timer() - t0
     return t
 
@@ -96,8 +97,32 @@ def bm_tuple_unpacking(iterations: cython.int, timer=DEFAULT_TIMER):
     return do_unpacking(iterations, x, timer)
 
 
+def bm_tuple_unpacking_typed(iterations: cython.int, timer=DEFAULT_TIMER):
+    x = tuple(range(10))
+    bench_func = _single_run[tuple] if cython.compiled else _single_run
+    return do_unpacking(iterations, x, timer, bench_func)
+
+
+def bm_pytuple_unpacking(iterations: cython.int, timer=DEFAULT_TIMER):
+    class PyTuple(tuple): pass
+    x = PyTuple(range(10))
+    return do_unpacking(iterations, x, timer)
+
+
 def bm_list_unpacking(iterations: cython.int, timer=DEFAULT_TIMER):
     x = list(range(10))
+    return do_unpacking(iterations, x, timer)
+
+
+def bm_list_unpacking_typed(iterations: cython.int, timer=DEFAULT_TIMER):
+    x = list(range(10))
+    bench_func = _single_run[list] if cython.compiled else _single_run
+    return do_unpacking(iterations, x, timer, bench_func)
+
+
+def bm_pylist_unpacking(iterations: cython.int, timer=DEFAULT_TIMER):
+    class PyList(list): pass
+    x = PyList(range(10))
     return do_unpacking(iterations, x, timer)
 
 
