@@ -957,3 +957,31 @@ def test_type_inference_two_step(unsigned char[:] x):
     for n in prange(length, nogil=True):  # then used to infer the type of n
         x[n] = n
     assert cython.typeof(n) == "Py_ssize_t", cython.typeof(n)
+
+
+def test_prange_end_barrier(int n=400, int nthreads=4):
+    """
+    Code after a prange in a parallel block must see all of its iterations.
+
+    >>> test_prange_end_barrier()
+    0
+    """
+    import time
+    cdef int i, k, late = n - n // nthreads, saw_stale = 0
+    cdef int *saw_stale_ptr = &saw_stale
+    cdef int *a = <int *> calloc(n, sizeof(int))
+
+    with nogil, cython.parallel.parallel(num_threads=nthreads):
+        for i in prange(n, schedule='static'):
+            if i == late:
+                with gil:
+                    time.sleep(0.02)
+            a[i] = 1
+        for k in range(n):
+            if a[k] == 0:
+                # Several threads may set it, so it's only a flag.
+                saw_stale_ptr[0] = 1
+                break
+
+    free(a)
+    return saw_stale

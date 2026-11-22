@@ -510,105 +510,12 @@ More details can be found :ref:`in the embedding documentation <embedding>`.
 How do I have to wrap C code that uses the restrict qualifier?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: There currently is no way of doing this directly into C code. Cython does not understand the restrict qualifier. However you can wrap your way around it.
+**Answer**: Since Cython 3.3, you can use the ``restrict`` qualifier in
+declarations, so you can copy C declarations that use it::
 
-See the following example code:
+    cdef extern from "<string.h>":
+        void *memcpy(void *restrict dest, const void *restrict src, size_t n)
 
-slurp.h
--------
-
-::
-
-    #include <sys/types.h>
-    #include <stdio.h>
-    #include <stdlib.h>
-    #include <regex.h>
-    #include <Python.h>
-
-    int th_match(char *, char *);
-
-cslurp.c
---------
-
-::
-
-    #include "slurp.h"
-
-    int th_match(char *string, char *pattern) {
-      int status;
-      regex_t re;
-      if(regcomp(&re, pattern, REG_EXTENDED|REG_NOSUB) != 0) { return 0; }
-      status = regexec(&re, string, (size_t)0, NULL, 0);
-      regfree(&re);
-      if(status != 0)
-        return 0;
-      return 1;
-    }
-
-slurp.pyx
----------
-
-::
-
-    cdef extern from "slurp.h":
-        int th_match(char *st, char *pt)
-
-    class Slurp:
-        '''
-        This is a simple, but optimized PEG (Parser Expression Group) parser.
-        It will parse through anything you hand it provided what you hand it
-        has a readline() method.
-
-        Example:
-            import sys
-            from thci.ext import slurp
-            o = slurp.Slurp()
-            o.register_trigger('^root:.*:.*:.*:.*$', sys.stdout.write)
-            o.process(open('/etc/passwd', 'r'))
-        '''
-
-        def __init__(self):
-            ''' __init__(self) '''
-            self.map = {}
-            self.idx = 0
-
-        def register_trigger(self, patt=None, cback=None, args=None):
-            ''' register_trigger(self, patt=None, cback=None, args=None) '''
-            if patt == None or cback == None:
-                return False
-            if args == None: args = False
-            self.map[self.idx] = (patt, cback, args)
-            self.idx += 0
-            return True
-
-        def process(self, fp=None):
-            ''' process(self, fp=None) '''
-            if fp == None:
-                return False
-            while True:
-                buf = fp.readline()
-                if not buf: break
-                for patt, cback, args in self.map.values():
-                    if th_match(buf, patt) == True:
-                        if args == False:
-                            cback(buf.strip())
-                        else:
-                            cback(buf.strip(), args)
-
-This avoids the problems using the restrict qualifiers (Such as are needed with
-the functions declared in regex.h on FreeBSD [at least 7.X]) by allowing the C
-compiler to handle things going from C to C, Cython's support for this even
-using the "const trick" doesn't seem to behave properly (at least as of 0.12).
-the following commands will generate your compiled module from the above
-source:
-
-::
-
-    cython -o slurp.c slurp.pyx
-    cc -shared -I/usr/include -I./ -I/usr/local/include/python2.5 -L/usr/local/lib -lpthread -lpython2.5 cslurp.c slurp.c -o slurp.so
-
-It is also possible to use distutils by adding the file cslurp.c (or your files
-name) to the list of files to be compiled for the extension.
 
 ----------
 
