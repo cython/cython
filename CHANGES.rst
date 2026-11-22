@@ -2,6 +2,31 @@
 Cython Changelog
 ================
 
+3.3.2 (202?-??-??)
+==================
+
+Features added
+--------------
+
+Bugs fixed
+----------
+
+* A race condition in the auto-pickle code was fixed for freethreading builds.
+  (Github issue :issue:`8107`)
+
+* ``None`` default values passed into optimised string methods (as start/end position)
+  were mishandled and let the call fail.
+  (Github issue :issue:`8098`)
+
+Other changes
+-------------
+
+* Limited API builds now explicitly use the ``Py_IncRef()`` / ``Py_DecRef()`` functions
+  instead of the respective macros to make it safer to use modules built for old Limited API
+  versions in CPython 3.14 and later.
+  (Github issue :issue:`8125`)
+
+
 3.3.1 (2026-11-01)
 ==================
 
