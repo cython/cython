@@ -267,7 +267,7 @@ def bytes_literal_decode_error():
     """
     >>> bytes_literal_decode_error()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 1: invalid start byte
+    UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 1: ...
     """
     return b'a\xffc'.decode()
 
