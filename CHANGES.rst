@@ -21,6 +21,10 @@ Features added
 Bugs fixed
 ----------
 
+* Fused types in special methods now raise a compile error instead of
+  generating invalid C.
+  (Github issue :issue:`7008`)
+
 * Returning the declared exception value without actually raising an exception
   now raises an exception instead of crashing.
   Patch by Vladimir Saraikin.  (Github issue :issue:`7857`)
