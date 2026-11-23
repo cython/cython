@@ -2236,7 +2236,7 @@ static CYTHON_INLINE vectorcallfunc __Pyx_PyVectorcall_Function(PyObject *callab
     PyTypeObject *tp = Py_TYPE(callable);
 
     #if defined(__Pyx_CyFunction_USED)
-    if (__Pyx_CyFunction_CheckExact(callable)) {
+    if (__Pyx_CyFunction_QuickCheckExact(callable)) {
         return __Pyx_CyFunction_func_vectorcall(callable);
     }
     #endif
@@ -2266,11 +2266,11 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     Py_ssize_t nargs = __Pyx_PyVectorcall_NARGS(nargsf);
 #if CYTHON_COMPILING_IN_CPYTHON
     if (nargs == 0 && kwargs == NULL) {
-        if (__Pyx_CyOrPyCFunction_Check(func) && likely( __Pyx_CyOrPyCFunction_GET_FLAGS(func) & METH_NOARGS))
+        if (__Pyx_CyOrPyCFunction_QuickCheck(func) && likely( __Pyx_CyOrPyCFunction_GET_FLAGS(func) & METH_NOARGS))
             return __Pyx_PyObject_CallMethO(func, NULL);
     }
     else if (nargs == 1 && kwargs == NULL) {
-        if (__Pyx_CyOrPyCFunction_Check(func) && likely( __Pyx_CyOrPyCFunction_GET_FLAGS(func) & METH_O))
+        if (__Pyx_CyOrPyCFunction_QuickCheck(func) && likely( __Pyx_CyOrPyCFunction_GET_FLAGS(func) & METH_O))
             return __Pyx_PyObject_CallMethO(func, args[0]);
     }
 #endif
