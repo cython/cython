@@ -9457,12 +9457,28 @@ class EnsureGILNode(GILExitNode):
         code.put_ensure_gil(declare_gilstate=False)
 
 
+def lock_owner(lock):
+    """
+    For a pymutex or lock that lives in a Python object, such as "obj.lock",
+    "obj.struct.lock" or "obj.locks[i]", returns the expression for that object.
+    """
+    from .ExprNodes import ProxyNode
+    if isinstance(lock, ProxyNode):
+        lock = lock.arg
+    while lock.is_attribute or lock.is_subscript:
+        lock = lock.obj if lock.is_attribute else lock.base
+        if lock.type.is_pyobject:
+            return lock
+    return None
+
+
 class CriticalSectionStatNode(TryFinallyStatNode):
     """
     Represents a freethreading Python critical section.
     In non-freethreading Python, this is a no-op.
 
     args    list of ExprNode    1 or 2 elements, must be object, pymutex or pymutex*
+    held_temps  list of str     temps that keep the objects alive until the critical section ends
     """
 
     child_attrs = ["args"] + TryFinallyStatNode.child_attrs
@@ -9470,6 +9486,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
     var_type = None
     preserve_exception = False
     is_pymutex_critical_section = False
+    held_temps = ()
 
     def __init__(self, pos, /, args, body, **kwds):
         if len(args) > 1:
@@ -9487,6 +9504,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
                 pos, length_tag=self.length_tag),
             **kwds,
         )
+        self.finally_clause.critical_section = self
 
     def check_for_yields(self):
         from .ParseTreeTransforms import YieldNodeCollector
@@ -9550,19 +9568,56 @@ class CriticalSectionStatNode(TryFinallyStatNode):
 
         for arg in self.args:
             arg.generate_evaluation_code(code)
+
+        # The finally clause ends the critical section and then releases the objects in
+        # these temps.  Like WithStatNode's "exit_var", they are not managed temps, because
+        # "return" releases those before the finally clause runs.
+        self.held_temps = []
+        held_mutex_args = []
+        unheld_args = []
         if self.is_pymutex_critical_section:
             args = [ f"{'' if arg.type.is_ptr else '&'}{arg.result()}" for arg in self.args ]
+            for arg in self.args:
+                owner = lock_owner(arg)
+                if owner is None:
+                    unheld_args.append(arg)
+                    continue
+                temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
+                code.putln(f"{temp} = {owner.py_result()};")
+                code.put_incref(temp, py_object_type)
+                self.held_temps.append(temp)
+                held_mutex_args.append(arg)
         else:
-            args = [ f"(PyObject*){arg.result()}" for arg in self.args ]
+            from .UtilNodes import ResultRefNode
+            args = []
+            for arg in self.args:
+                if isinstance(arg, ResultRefNode):
+                    # The temp of an enclosing LetNode (as in the loops that Optimize
+                    # generates), which outlives the critical section.
+                    args.append(f"(PyObject*){arg.result()}")
+                    unheld_args.append(arg)
+                    continue
+                temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
+                arg.make_owned_reference(code)
+                code.putln(f"{temp} = {arg.py_result()};")
+                arg.generate_post_assignment_code(code)
+                arg.free_temps(code)
+                self.held_temps.append(temp)
+                args.append(temp)
         code.putln(
             f"__Pyx_PyCriticalSection{self.length_tag}_Begin{mutex}(&{variable}, {', '.join(args)});"
         )
+        for arg in held_mutex_args:
+            arg.generate_disposal_code(code)
+            arg.free_temps(code)
 
         TryFinallyStatNode.generate_execution_code(self, code)
 
-        for arg in self.args:
+        for arg in unheld_args:
             arg.generate_disposal_code(code)
             arg.free_temps(code)
+        for temp in self.held_temps:
+            code.funcstate.release_temp(temp)
 
         code.end_block()
 
@@ -9570,7 +9625,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
         error(self.pos, "Critical sections require the GIL")
 
 
-class CriticalSectionExitNode(StatNode):
+class CriticalSectionExitNode(StatNode, CopyWithUpTreeRefsMixin):
     """
     critical_section - the CriticalSectionStatNode that owns this
     """
@@ -9584,6 +9639,8 @@ class CriticalSectionExitNode(StatNode):
         code.putln(
             f"__Pyx_PyCriticalSection{self.length_tag}_End(&{ Naming.critical_section_variable});"
         )
+        for temp in self.critical_section.held_temps:
+            code.put_decref_clear(temp, py_object_type)
 
 class CythonLockStatNode(TryFinallyStatNode):
     """
@@ -9593,11 +9650,13 @@ class CythonLockStatNode(TryFinallyStatNode):
     where l in a cython.pymutex or cython.pythread_type_lock.
 
     arg    ExprNode
+    owner_temp  str or None     temp that keeps the object that contains the lock alive
     """
 
     child_attrs = ["arg"] + TryFinallyStatNode.child_attrs
 
     lock_temp = None
+    owner_temp = None
 
     preserve_exception = False  # No need to save/restore exception state to release the lock
     nogil_check = None
@@ -9649,13 +9708,29 @@ class CythonLockStatNode(TryFinallyStatNode):
         else:
             gil_str = "Gil"
 
+        # If the lock lives in a Python object, keep that object alive until the finally
+        # clause has released the lock, even if the block reassigns the variable that refers
+        # to it.  Like WithStatNode's "exit_var", the temp is not managed, because "return"
+        # releases those before the finally clause runs.  This needs the GIL.
+        owner = None if self.in_nogil_context else lock_owner(self.arg)
+        if owner is None:
+            self.owner_temp = None
+        else:
+            self.owner_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
+            code.putln(f"{self.owner_temp} = {owner.py_result()};")
+            code.put_incref(self.owner_temp, py_object_type)
+            self.arg.generate_disposal_code(code)
+            self.arg.free_temps(code)
+
         code.putln(f"__Pyx_Locks_{self.arg.type.cname_part}_Lock{gil_str}(*{temp_name});")
 
         TryFinallyStatNode.generate_execution_code(self, code)
 
-        self.arg.generate_disposal_code(code)
-        self.arg.free_temps(code)
-
+        if owner is None:
+            self.arg.generate_disposal_code(code)
+            self.arg.free_temps(code)
+        else:
+            code.funcstate.release_temp(self.owner_temp)
         self.lock_temp.release(code)
 
         code.end_block()
@@ -9674,6 +9749,8 @@ class CythonLockExitNode(StatNode, CopyWithUpTreeRefsMixin):
     def generate_execution_code(self, code):
         cname_part = self.lock_stat_node.arg.type.cname_part
         code.putln(f"__Pyx_Locks_{cname_part}_Unlock(*{self.lock_stat_node.lock_temp.result()});")
+        if self.lock_stat_node.owner_temp:
+            code.put_decref_clear(self.lock_stat_node.owner_temp, py_object_type)
 
 
 def cython_view_utility_code(options):

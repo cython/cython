@@ -512,3 +512,92 @@ def old_lock_unknown_gil():
     for t in threads:
         t.join()
     return count
+
+
+# The tests below check that "with lock:" keeps the object that contains the lock alive
+# until the lock is released, and releases it then, on every way out of the block.
+# They rely on reference counting.
+
+def skip_on_pypy_and_graalpy(f):
+    import platform
+    if platform.python_implementation() not in ("PyPy", "GraalVM"):
+        return f
+
+release_log = []
+
+cdef struct LockRef:
+    int other
+    cython.pymutex *lock
+
+cdef class LoggedRelease:
+    cdef cython.pymutex lock
+    cdef LockRef ref
+
+    def __cinit__(self):
+        self.ref.lock = &self.lock
+
+    def __dealloc__(self):
+        release_log.append("released while locked" if self.lock.locked() else "released")
+
+@skip_on_pypy_and_graalpy
+def break_from_lock():
+    """
+    >>> break_from_lock()
+    >>> release_log
+    ['released', 'after loop']
+    """
+    release_log.clear()
+    while True:
+        with LoggedRelease().lock:
+            break
+    release_log.append("after loop")
+
+@skip_on_pypy_and_graalpy
+def return_from_lock():
+    """
+    >>> return_from_lock()
+    >>> release_log
+    ['released']
+    """
+    release_log.clear()
+    with LoggedRelease().lock:
+        return
+
+@skip_on_pypy_and_graalpy
+def reassign_lock_owner():
+    """
+    >>> reassign_lock_owner()
+    >>> release_log
+    ['released', 'after with']
+    """
+    cdef LoggedRelease owner = LoggedRelease()
+    release_log.clear()
+    with owner.lock:
+        owner = None
+    release_log.append("after with")
+
+@skip_on_pypy_and_graalpy
+def reassign_lock_owner_through_struct():
+    """
+    >>> reassign_lock_owner_through_struct()
+    >>> release_log
+    ['released', 'after with']
+    """
+    cdef LoggedRelease owner = LoggedRelease()
+    release_log.clear()
+    with owner.ref.lock[0]:
+        owner = None
+    release_log.append("after with")
+
+@skip_on_pypy_and_graalpy
+def close_generator_in_lock():
+    """
+    >>> generator = close_generator_in_lock()
+    >>> next(generator)
+    >>> generator.close()
+    >>> release_log
+    ['released']
+    """
+    release_log.clear()
+    with LoggedRelease().lock:
+        yield
