@@ -2546,9 +2546,11 @@ def main():
 
     from Cython.Compiler import DebugFlags
     args = []
+    debug_flags = []
     for arg in sys.argv[1:]:
         if arg.startswith('--debug') and arg[2:].replace('-', '_') in dir(DebugFlags):
             setattr(DebugFlags, arg[2:].replace('-', '_'), True)
+            debug_flags.append(arg[2:].replace('-', '_'))
         else:
             args.append(arg)
 
@@ -2765,6 +2767,7 @@ def main():
     parser.add_argument('cmd_args', nargs='*')
 
     options = parser.parse_args(args)
+    options.debug_flags = debug_flags
     cmd_args = options.cmd_args
 
     if options.with_cython:
@@ -2977,6 +2980,9 @@ def configure_cython(options):
     Options.generate_cleanup_code = 3  # complete cleanup code
 
     from Cython.Compiler import DebugFlags
+    for debug_flag in options.debug_flags:
+        # Set in main() already, but worker processes that are not forked don't inherit them.
+        setattr(DebugFlags, debug_flag, True)
     DebugFlags.debug_temp_code_comments = 1
     DebugFlags.debug_no_exception_intercept = 1  # provide better crash output in CI runs
 
@@ -3030,7 +3036,6 @@ def setup_test_directory(options):
                                 pyxbuild_dir=os.path.join(WORKDIR, "support"))
             sys.path.insert(0, os.path.split(libpath)[0])
             import_refnanny()
-        CDEFS.append(('CYTHON_REFNANNY', '1'))
 
 
 def runtests_callback(args):
@@ -3095,6 +3100,11 @@ def runtests(options, cmd_args, coverage=None):
     refnanny = None
     if options.with_refnanny:
         refnanny = import_refnanny()
+        # Not in setup_test_directory(), which only runs in the main process: the worker
+        # processes of parallel test runs only inherit its CDEFS if they are forked, and
+        # the default start method is "forkserver" on Linux since Py3.14 and "spawn" on
+        # macOS and Windows.
+        CDEFS.append(('CYTHON_REFNANNY', '1'))
 
     global sys_version_or_limited_version
     sys_version_or_limited_version = sys.version_info
@@ -3165,6 +3175,9 @@ def runtests(options, cmd_args, coverage=None):
 
     if not COMPILER_HAS_INT128:
         exclude_selectors += [RegExSelector('int128')]
+
+    if not options.with_refnanny:
+        exclude_selectors.append(TagsSelector('tag', 'refnanny'))
 
     if options.shard_num > -1:
         exclude_selectors.append(ShardExcludeSelector(options.shard_num, options.shard_count))
