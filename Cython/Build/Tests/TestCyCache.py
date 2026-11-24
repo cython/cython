@@ -143,6 +143,38 @@ class TestCyCache(CythonTest):
     def test_cycache_uses_cache_compile(self):
         self._test_cycache_uses_cache(self.fresh_compile)
 
+    def test_cycache_depfile_compile(self):
+        a_pyx = os.path.join(self.src_dir, 'a.pyx')
+        dependency_pxd = os.path.join(self.src_dir, 'dependency.pxd')
+        output_dir = os.path.join(self.temp_dir.name, 'output')
+        os.mkdir(output_dir)
+        a_cpp = os.path.join(output_dir, 'a.cpp')
+        depfile = a_cpp + '.dep'
+
+        with open(dependency_pxd, 'w') as f:
+            f.write('ctypedef int value_t\n')
+        with open(a_pyx, 'w') as f:
+            f.write('from dependency cimport value_t\ncdef value_t value = 1\n')
+
+        self.fresh_compile(a_pyx, cache=self.cache_dir, cplus=True,
+                           output_file=a_cpp, depfile=True)
+        with open(a_cpp) as f:
+            expected_cpp = f.read()
+        with open(depfile) as f:
+            expected_depfile = f.read()
+        self.assertIn('a.pyx', expected_depfile)
+        self.assertIn('dependency.pxd', expected_depfile)
+        os.unlink(a_cpp)
+        os.unlink(depfile)
+
+        self.fresh_compile(a_pyx, cache=self.cache_dir, cplus=True,
+                           output_file=a_cpp, depfile=True)
+
+        with open(a_cpp) as f:
+            self.assertEqual(f.read(), expected_cpp)
+        with open(depfile) as f:
+            self.assertEqual(f.read(), expected_depfile)
+
     def _test_cycache_annotation(self, compilation_method):
         a_pyx = os.path.join(self.src_dir, 'a.pyx')
         a_c = a_pyx[:-4] + '.c'

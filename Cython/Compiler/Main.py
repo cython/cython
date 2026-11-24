@@ -536,7 +536,10 @@ def run_cached_pipeline(source, options, full_module_name, context, cache, finge
 
             source = setup_source_object(source, source_ext, full_module_name, options, context)
             # Set up result object
-            return create_default_resultobj(source, options)
+            result = create_default_resultobj(source, options)
+            if options.depfile:
+                _write_depfile(result, context)
+            return result
 
     result = run_pipeline(source, options, full_module_name, context)
     if fingerprint:
@@ -584,10 +587,14 @@ def run_pipeline(source, options, full_module_name, context):
     err, enddata = Pipeline.run_pipeline(pipeline, source)
     context.teardown_errors(err, options, result)
     if err is None and options.depfile:
-        from ..Build.Dependencies import create_dependency_tree
-        dependencies = create_dependency_tree(context).all_dependencies(result.main_source_file)
-        Utils.write_depfile(result.c_file, result.main_source_file, dependencies)
+        _write_depfile(result, context)
     return result
+
+
+def _write_depfile(result, context):
+    from ..Build.Dependencies import create_dependency_tree
+    dependencies = create_dependency_tree(context).all_dependencies(result.main_source_file)
+    Utils.write_depfile(result.c_file, result.main_source_file, dependencies)
 
 
 # ------------------------------------------------------------------------
