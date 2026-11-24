@@ -3,8 +3,7 @@
 # cython: test_assert_c_code_has = CYTHON_UNUSED char \*CYTHON_RESTRICT __pyx_dp_v_y
 # cython: test_assert_c_code_has = static CYTHON_FORCE_INLINE void __pyx_ri_f_16memview_restrict_saxpy\(
 # cython: test_assert_c_code_has = __pyx_dp_v_plain_arg = __pyx_v_plain_arg.data;
-# cython: test_assert_c_code_has = char \*CYTHON_RESTRICT __pyx_dp_v_va_arr;
-# cython: test_assert_c_code_has = __pyx_dp_v_va_arr = __pyx_v_va_arr.data;
+# cython: test_assert_c_code_has = char \*CYTHON_RESTRICT __pyx_dp_v_va_arr = __pyx_v_va_arr.data;
 
 cimport cython
 
@@ -241,11 +240,11 @@ def none_argument(double[::1] restrict a=None):
     return a[0]
 
 _WARNINGS = """
-200:4: Restrict qualifier of memoryview type is ignored in class attribute type
+199:4: Restrict qualifier of memoryview type is ignored in class attribute type
+227:18: Restrict qualifier of memoryview type is ignored in local variable type
 228:18: Restrict qualifier of memoryview type is ignored in local variable type
-229:18: Restrict qualifier of memoryview type is ignored in local variable type
 
 26:4: 'cpdef_method' redeclared
 36:4: 'cpdef_cname_method' redeclared
-166:0: 'cpdef_function' redeclared
+165:0: 'cpdef_function' redeclared
 """

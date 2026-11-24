@@ -2367,9 +2367,6 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_buffer:
                 Buffer.put_acquire_arg_buffer(entry, code, self.pos)
 
-        # ----- Initialise copies of memoryview data pointers (filled in after the body)
-        memview_data_init_code = code.insertion_point() if memview_data_entries else None
-
         if code.funcstate.needs_refnanny:
             # if this is true there's definite some reference counting in
             # the variable declarations
@@ -2392,8 +2389,7 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.memview_data_used and entry not in restrict_entries:
                 # 'restrict' on a local variable is mostly ignored by C compilers but harmless.
                 restrict = "CYTHON_RESTRICT " if entry.type.is_cv_qualified and entry.type.is_restrict else ""
-                tempvardecl_code.putln(f"char *{restrict}{entry.memview_data_cname};")
-                memview_data_init_code.putln(f"{entry.memview_data_cname} = {entry.cname}.data;")
+                tempvardecl_code.putln(f"char *{restrict}{entry.memview_data_cname} = {entry.cname}.data;")
 
         code.mark_pos(self.pos, trace=False)
         code.putln("")
