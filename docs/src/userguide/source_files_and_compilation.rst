@@ -568,6 +568,7 @@ The Cython cache is disabled by default but can be enabled by the ``cache`` para
         ext_modules=cythonize(extensions, cache=True)
     )
 
+Cython cache is safe to use from multiple concurrent processes.
 The cached files are searched in the following paths by default in the following order:
 
 1. path specified in the :envvar:`CYTHON_CACHE_DIR` environment variable,

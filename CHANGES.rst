@@ -37,8 +37,54 @@ Bugs fixed
   ``123`` -> ``123.0`` or ``True`` -> ``1``.
   (Github issue :issue:`8103`)
 
+* Iteration over literal sequences of one-character byte strings, e.g. ``[b'a', b'b']``,
+  could yield integers instead of bytes objects as loop variable values.
+  (Github issue :issue:`8103`)
+
 Other changes
 -------------
+
+
+3.3.2 (2026-11-25)
+==================
+
+Bugs fixed
+----------
+
+* Since Cython 3.3.0, parallel code following a ``prange()`` for-loop could start executing
+  before all loop iterations had finished.
+  Patch by Arthur Lacote.  (Github issue :issue:`8120`)
+
+* A race condition in the auto-pickle code was fixed for freethreading builds.
+  (Github issue :issue:`8107`)
+
+* ``None`` default values passed into optimised string methods (as start/end position)
+  were mishandled and let the call fail.
+  (Github issue :issue:`8098`)
+
+* Decoding bytes literals in place crashed Cython.
+  Patch by 0z5a.  (Github issue :issue:`8134`)
+
+* ``cython.collection_type()`` did not work in PyPy.
+  (Github issue :issue:`8133`)
+
+* Warnings about "implicit ``__init__.py`` creation" in Bazel builds were resolved.
+  Patch by David Sanderson.  (Github issue :issue:`8132`)
+
+* ``Errors.close_listing_file()`` failed to clear the echo file reference,
+  allowing later writes to closed files.
+  Patch by Lumír Balhar.  (Github issue :issue:`8128`)
+
+Other changes
+-------------
+
+* Limited API builds now explicitly use the ``Py_IncRef()`` / ``Py_DecRef()`` functions
+  instead of the respective macros to make it safer to use modules built for old Limited API
+  versions in CPython 3.14 and later.
+  (Github issue :issue:`8125`)
+
+* Cythonizing under GraalPython now avoids parallel jobs by default to limit the memory usage.
+  Patch by Michael Šimáček.  (Github issue :issue:`8143`)
 
 
 3.3.1 (2026-11-01)

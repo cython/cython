@@ -285,7 +285,6 @@ As for NumPy, new axes can be introduced by indexing an array with ``None`` :
             myslice[None, 10:-20:2, None]
 
 One may mix new axis indexing with all other forms of indexing and slicing.
-See also an example_.
 
 
 .. _readonly_views:
@@ -1086,4 +1085,3 @@ See: :ref:`compiler-directives` for more information about this directive.
 
 .. _GIL: https://docs.python.org/dev/glossary.html#term-global-interpreter-lock
 .. _NumPy: https://docs.scipy.org/doc/numpy/reference/arrays.ndarray.html#memory-layout
-.. _example: https://docs.scipy.org/doc/numpy/reference/arrays.indexing.html
