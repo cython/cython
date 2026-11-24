@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.3.2 (2026-11-22)
+3.3.2 (2026-11-25)
 ==================
 
 Bugs fixed
@@ -21,6 +21,9 @@ Bugs fixed
 
 * Decoding bytes literals in place crashed Cython.
   Patch by 0z5a.  (Github issue :issue:`8134`)
+
+* ``cython.collection_type()`` did not work in PyPy.
+  (Github issue :issue:`8133`)
 
 * Warnings about "implicit ``__init__.py`` creation" in Bazel builds were resolved.
   Patch by David Sanderson.  (Github issue :issue:`8132`)
