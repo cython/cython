@@ -403,3 +403,55 @@ def test_unpack_resultref():
     """
     a = b, c = 1, set()
     return a, b, c
+
+
+# GH-8122: slices with a non-constant start crashed type inference
+def unpack_slice_nonconst_start(s, i):
+    """
+    >>> unpack_slice_nonconst_start([1, 2, 3], 1)
+    (2, 3)
+    >>> unpack_slice_nonconst_start('xyz', 1)
+    ('y', 'z')
+    """
+    a, b = s[i:]
+    return a, b
+
+
+def unpack_slice_nonconst_start_stop(s):
+    """
+    >>> unpack_slice_nonconst_start_stop([1, 2, 3, 4])
+    [3, 5, 7]
+    """
+    r = []
+    for i in range(len(s) - 1):
+        a, b = s[i:i + 2]
+        r.append(a + b)
+    return r
+
+
+def unpack_slice_nonconst_start_typed(list s, Py_ssize_t i):
+    """
+    >>> unpack_slice_nonconst_start_typed([1, 2, 3], 1)
+    (2, 3)
+    """
+    a, b = s[i:]
+    return a, b
+
+
+def unpack_slice_nonconst_start_ctuple(t: tuple[int, str, float], i):
+    """
+    >>> unpack_slice_nonconst_start_ctuple((1, 'x', 2.5), 1)
+    ('x', 2.5)
+    """
+    a, b = t[i:]
+    return a, b
+
+
+def unpack_slice_nonconst_start_starred(s, i):
+    """
+    >>> unpack_slice_nonconst_start_starred([1, 2, 3, 4], 1)
+    (2, [3, 4], [2, 3], 4)
+    """
+    a, *b = s[i:]
+    *c, d = s[i:]
+    return a, b, c, d
