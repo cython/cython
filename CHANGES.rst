@@ -41,6 +41,18 @@ Bugs fixed
   could yield integers instead of bytes objects as loop variable values.
   (Github issue :issue:`8103`)
 
+* ``libcpp.string`` not longer requires the C++17 ``string_view`` header.
+  (Github issue :issue:`8126`)
+
+* Memoryviews did not report their full buffer size to Python's ``sys.getsizeof()``.
+  Patch by 0z5a.  (Github issue :issue:`7073`)
+
+* ``pass`` statements were rejected in a few valid places.
+  (Github issue :issue:`8038`)
+
+* Some concurrency and cleanup issues were resolved for the compilation cache.
+  Patch by Vyas Ramasubramani.  (Github issue :issue:`8108`)
+
 Other changes
 -------------
 
