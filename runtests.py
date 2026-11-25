@@ -2544,15 +2544,7 @@ def main():
 
     DISTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]))
 
-    from Cython.Compiler import DebugFlags
-    args = []
-    for arg in sys.argv[1:]:
-        if arg.startswith('--debug') and arg[2:].replace('-', '_') in dir(DebugFlags):
-            setattr(DebugFlags, arg[2:].replace('-', '_'), True)
-        else:
-            args.append(arg)
-
-    from argparse import ArgumentParser
+    from argparse import ArgumentParser, SUPPRESS
     parser = ArgumentParser(usage="usage: %(prog)s [options] [selector ...]")
     parser.add_argument(
         "--no-cleanup", dest="cleanup_workdir",
@@ -2762,9 +2754,19 @@ def main():
     parser.add_argument(
         "--shared-utility", dest="use_shared_utility", default=False, action="store_true",
         help="Compile modules with shared cython utility code")
+    from Cython.Compiler import DebugFlags
+    for name in vars(DebugFlags):
+        if name.startswith('debug'):
+            parser.add_argument(
+                "--" + name.replace('_', '-'), dest="debug_flags",
+                action="append_const", const=name, default=[],
+                help=SUPPRESS)
     parser.add_argument('cmd_args', nargs='*')
 
-    options = parser.parse_args(args)
+    options = parser.parse_args()
+    # Set before anything imports the compiler modules, which read some of the flags at import time.
+    for name in options.debug_flags:
+        setattr(DebugFlags, name, True)
     cmd_args = options.cmd_args
 
     if options.with_cython:
@@ -3030,12 +3032,16 @@ def setup_test_directory(options):
                                 pyxbuild_dir=os.path.join(WORKDIR, "support"))
             sys.path.insert(0, os.path.split(libpath)[0])
             import_refnanny()
-        CDEFS.append(('CYTHON_REFNANNY', '1'))
 
 
 def runtests_callback(args):
     options, cmd_args, shard_num = args
     options.shard_num = shard_num
+
+    # Worker processes do not necessarily inherit the debug flags that main() set.
+    from Cython.Compiler import DebugFlags
+    for name in options.debug_flags:
+        setattr(DebugFlags, name, True)
 
     # Make the shard number visible in faulthandler stack traces in the case of process crashes.
     try:
@@ -3095,6 +3101,8 @@ def runtests(options, cmd_args, coverage=None):
     refnanny = None
     if options.with_refnanny:
         refnanny = import_refnanny()
+        # Set in each test process, since the workers of parallel runs do not necessarily inherit CDEFS.
+        CDEFS.append(('CYTHON_REFNANNY', '1'))
 
     global sys_version_or_limited_version
     sys_version_or_limited_version = sys.version_info
@@ -3165,6 +3173,9 @@ def runtests(options, cmd_args, coverage=None):
 
     if not COMPILER_HAS_INT128:
         exclude_selectors += [RegExSelector('int128')]
+
+    if not options.with_refnanny:
+        exclude_selectors.append(TagsSelector('tag', 'refnanny'))
 
     if options.shard_num > -1:
         exclude_selectors.append(ShardExcludeSelector(options.shard_num, options.shard_count))
