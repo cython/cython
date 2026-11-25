@@ -403,9 +403,10 @@ dependency_regex = re.compile(
     r"(?:^ [ \t\f]* cdef     [ \t\f]+ extern [ \t\f]+ from [ \t\f]+ ['\"] ([^'\"]+) ['\"] ) |"
     r"(?:^ [ \t\f]* include  [ \t\f]+ ['\"] ([^'\"]+) ['\"] )",
     re.MULTILINE | re.VERBOSE)
+# Matched right after "from pkg cimport ", i.e. at the position of the first imported name.
 dependency_after_from_regex = re.compile(
-    r"(?:^ [ \t\f]+ \( ([\w., \t\f]*) \) [ \t\f]* [#\n]) |"
-    r"(?:^ [ \t\f]+    ([\w., \t\f]*)    [ \t\f]* [#\n])",
+    r"(?:[ \t\f]* \( ([\w., \t\f\n\#]*) \) ) |"
+    r"(?: ([\w., \t\f]*) (?:[#\n]|$))",
     re.MULTILINE | re.VERBOSE)
 
 
@@ -501,12 +502,14 @@ def parse_dependencies(source_filename):
 
         if cimport_from:
             cimports.append(cimport_from)
-            m_after_from = dependency_after_from_regex.search(source, pos=m.end())
+            m_after_from = dependency_after_from_regex.match(source, pos=m.end())
             if m_after_from:
                 multiline, one_line = m_after_from.groups()
-                subimports = multiline or one_line
-                cimports.extend("{}.{}".format(cimport_from, s.strip())
-                                for s in subimports.split(','))
+                subimports = multiline if multiline is not None else one_line
+                # Comments are stripped to "#__Pyx_L1_" and each item is "name" or "name as alias".
+                subimports = re.sub(r"#\w*", "", subimports)
+                prefix = cimport_from if cimport_from.endswith('.') else cimport_from + '.'
+                cimports.extend(prefix + s.split()[0] for s in subimports.split(',') if s.strip())
 
         elif cimport_list:
             cimports.extend(x.strip() for x in cimport_list.split(","))
