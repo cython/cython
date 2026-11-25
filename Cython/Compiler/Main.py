@@ -800,7 +800,9 @@ def search_include_directories(dirs, qualified_name, suffix="", pos=None, includ
         namespace_dirs = []
         for dirname in dirs:
             package_dir, is_namespace = Utils.check_package_dir(dirname, package_names)
-            if package_dir is not None:
+            # Build hooks can create include directories between lookups, so
+            # existence must not be cached with the shared package prefixes.
+            if package_dir is not None and os.path.isdir(package_dir or os.curdir):
                 if is_namespace:
                     namespace_dirs.append(package_dir)
                     continue
