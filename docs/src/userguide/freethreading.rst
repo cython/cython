@@ -155,9 +155,10 @@ It can be called with or without the GIL and is available on all Python versions
 it uses the native PyMutex API for efficient atomic reads. On older Python versions, it uses a
 try-acquire approach that temporarily acquires and releases the lock if it's available.
 
-``acquire`` will avoid deadlocks if the GIL is held (most relevant in
-non-freethreaded versions of Python, although freethreaded Python can
-become single-threaded under some circumstances).
+``acquire`` will release the GIL while waiting for the pymutex if the GIL is held, in order
+to avoid deadlocks (most relevant in non-freethreaded versions of Python, although freethreaded
+Python can become single-threaded under some circumstances). If the GIL was held prior to
+acquiring the pymutex, it will also be held afterwards.
 
 On Python 3.13+, ``cython.pymutex`` is just a
 `PyMutex <https://docs.python.org/3.13/c-api/init.html#synchronization-primitives>`_
