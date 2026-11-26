@@ -853,6 +853,12 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
                 # Create the new extension
                 m, metadata = create_extension(template, kwds)
+                # Keep a per-extension compile-time environment, if the
+                # Extension defines one.  It is not part of the distutils
+                # settings above, so it would otherwise be lost here.
+                compile_time_env = getattr(template, 'cython_compile_time_env', None)
+                if compile_time_env is not None:
+                    m.cython_compile_time_env = compile_time_env
                 m.np_pythran = np_pythran or getattr(m, 'np_pythran', False)
                 m.shared_utility_qualified_name = shared_utility_qualified_name
                 if m.np_pythran:
@@ -1049,6 +1055,16 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
             options = cpp_options
         else:
             options = c_options
+
+        compile_time_env = getattr(m, 'cython_compile_time_env', None)
+        if compile_time_env:
+            # The Extension carries its own compile-time environment
+            # (this is how the distutils build_ext passes it in, one
+            # extension at a time).  Let it override the environment
+            # that was passed to cythonize() for all modules.
+            merged_env = dict(options.compile_time_env or ())
+            merged_env.update(compile_time_env)
+            options = CompilationOptions(options, compile_time_env=merged_env)
 
         new_sources = []
         for source in m.sources:
