@@ -6796,6 +6796,8 @@ class InPlaceAssignmentNode(AssignmentNode):
     #  (it must be a NameNode, AttributeNode, or IndexNode).
 
     child_attrs = ["lhs", "rhs"]
+    exception_check = None
+    exception_value = None
 
     def analyse_declarations(self, env):
         self.lhs.analyse_target_declaration(env)
@@ -6810,6 +6812,16 @@ class InPlaceAssignmentNode(AssignmentNode):
         elif self.lhs.type.is_string and self.operator in '+-':
             # use pointer arithmetic for char* LHS instead of string concat
             self.rhs = self.rhs.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
+        elif self.lhs.type.is_cpp_class:
+            op = env.lookup_operator(self.operator + '=', [self.lhs, self.rhs])
+            if op:
+                self.exception_check = op.type.exception_check
+                self.exception_value = op.type.exception_value
+                if self.exception_check == '+':
+                    from . import ExprNodes
+                    if ExprNodes.needs_cpp_exception_conversion(self):
+                        env.use_utility_code(
+                            UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
         return self
 
     def generate_execution_code(self, code):
@@ -6832,8 +6844,14 @@ class InPlaceAssignmentNode(AssignmentNode):
             error(self.pos, "Inplace operators not supported on memoryview slices")
         else:
             # C++
-            # TODO: make sure overload is declared
-            code.putln("%s %s= %s;" % (lhs.result(), c_op, rhs.result()))
+            statement = "%s %s= %s;" % (lhs.result(), c_op, rhs.result())
+            if lhs.type.is_cpp_class and self.exception_check == '+':
+                from . import ExprNodes
+                ExprNodes.translate_cpp_exception(
+                    code, self.pos, statement, None, self.exception_value,
+                    self.in_nogil_context)
+            else:
+                code.putln(statement)
         lhs.generate_subexpr_disposal_code(code)
         lhs.free_subexpr_temps(code)
         rhs.generate_disposal_code(code)

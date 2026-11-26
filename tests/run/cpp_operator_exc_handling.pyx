@@ -18,6 +18,11 @@ cdef extern from "cpp_operator_exc_handling_helper.hpp" nogil:
         wrapped_int operator*(wrapped_int &other) except +OverflowError
         wrapped_int operator/(wrapped_int &other) except +
         wrapped_int operator%(wrapped_int &other) except +
+        wrapped_int operator+=(wrapped_int &other) except +
+        wrapped_int operator-=(wrapped_int &other) except +
+        wrapped_int operator*=(wrapped_int &other) except +
+        wrapped_int operator/=(wrapped_int &other) except +
+        wrapped_int operator%=(wrapped_int &other) except +
         long long operator^(wrapped_int &other) except +
         long long operator&(wrapped_int &other) except +
         long long operator|(wrapped_int &other) except +
@@ -177,6 +182,36 @@ def cpp_postdecrement(long long a):
     cdef wrapped_int wa = wrapped_int(a)
     return postdecrement(wa).val
 
+def plusequals(long long a, long long b):
+    cdef wrapped_int wa = wrapped_int(a)
+    cdef wrapped_int wb = wrapped_int(b)
+    wa += wb
+    return wa.val
+
+def minusequals(long long a, long long b):
+    cdef wrapped_int wa = wrapped_int(a)
+    cdef wrapped_int wb = wrapped_int(b)
+    wa -= wb
+    return wa.val
+
+def timesequals(long long a, long long b):
+    cdef wrapped_int wa = wrapped_int(a)
+    cdef wrapped_int wb = wrapped_int(b)
+    wa *= wb
+    return wa.val
+
+def divideequals(long long a, long long b):
+    cdef wrapped_int wa = wrapped_int(a)
+    cdef wrapped_int wb = wrapped_int(b)
+    wa /= wb
+    return wa.val
+
+def modequals(long long a, long long b):
+    cdef wrapped_int wa = wrapped_int(a)
+    cdef wrapped_int wb = wrapped_int(b)
+    wa %= wb
+    return wa.val
+
 def negate(long long a):
     cdef wrapped_int wa = wrapped_int(a)
     return (not wa).val
@@ -256,6 +291,11 @@ def test_operator_exception_handling():
     assert_raised(cpp_predecrement, 4)
     assert_raised(cpp_postincrement, 4)
     assert_raised(cpp_postdecrement, 4)
+    assert_raised(plusequals, 1, 5)
+    assert_raised(minusequals, 1, 5)
+    assert_raised(timesequals, 1, 5)
+    assert_raised(divideequals, 1, 5)
+    assert_raised(modequals, 1, 5)
     assert_raised(negate, 4)
     assert_raised(bool_cast, 4)
     assert_raised(index, 1, 4)
