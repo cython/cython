@@ -79,6 +79,19 @@ def test_vector_iterator_addition(py_v):
 
     return deref(first+2)
 
+def test_vector_iterator_inferred_inplace_addition(py_v):
+    """
+    >>> test_vector_iterator_inferred_inplace_addition([2, 4, 6])
+    [2, 4, 6]
+    """
+    cdef vector[int] vint = py_v
+    result = []
+    it = vint.begin()
+    while it != vint.end():
+        result.append(deref(it))
+        it += 1
+    return result
+
 def test_ptrs():
     """
     >>> test_ptrs()
