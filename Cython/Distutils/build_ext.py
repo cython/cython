@@ -133,7 +133,7 @@ class build_ext(_build_ext):
         }
 
         new_ext = cythonize(
-            ext,force=self.force, quiet=self.verbose == 0, **options
+            ext,force=self.force, quiet=self.verbose == 0, force_parallel=self.parallel, **options
         )[0]
 
         ext.sources = new_ext.sources
