@@ -706,5 +706,32 @@ if cython.compiled:
     TypeError: Expected dict, got D
     """
 
+type t_str_pyint = tuple[str, int]
+type l_str = list[str]
+type s_int = set[int]
+type t_composite = tuple[s_int, l_str]
+type t_bad = tuple[bad_alias]  # here should be a warning
+type c_int_float = tuple[cython.int, cython.float]
+
+def test_type_alias(a: t_str_pyint, b: c_int_float, c: list[t_str_pyint], d: t_composite):
+    """
+    >>> test_type_alias(('a', 1), (1, 2.0), [('b', 2)], (['a'], {5}))
+    tuple[str object,int object] object
+    (int, float)
+    list[tuple[str object,int object] object] object
+    tuple[set[int object] object,list[str object] object] object
+    tuple object
+    t_str_pyint
+    """
+    e: t_bad = ()
+    print(cython.typeof(a) + ('[str object,int object] object' if not cython.compiled else ''))
+    print(cython.typeof(b) if cython.compiled else '(int, float)')
+    print(cython.typeof(c) + ('[tuple[str object,int object] object] object' if not cython.compiled else ''))
+    print(cython.typeof(d) + ('[set[int object] object,list[str object] object] object' if not cython.compiled else ''))
+    print(cython.typeof(e) + (' object' if not cython.compiled else ''))
+    if not cython.compiled:
+        # This is crashing cython when compiled
+        print(t_str_pyint)
+
 _WARNINGS = """
 """

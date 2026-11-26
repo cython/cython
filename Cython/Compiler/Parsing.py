@@ -2434,10 +2434,24 @@ def p_simple_statement(s: PyrexScanner, first_statement: cython.bint = 0):
         node = p_assert_statement(s)
     elif s.sy == 'pass':
         node = p_pass_statement(s)
+    elif s.sy == 'IDENT' and s.systring == 'type' and s.peek()[0] == 'IDENT':
+        node = p_type_statement(s)
     else:
         node = p_expression_or_assignment(s)
     return node
 
+@cython.cfunc
+def p_type_statement(s: PyrexScanner):
+    pos = s.position()
+    s.next()  # 'type'
+    lhs = p_ident(s)
+    s.expect('=')
+    rhs = p_test(s)
+    return Nodes.PyTypeAliasNode(
+            pos,
+            lhs = ExprNodes.NameNode(pos, name=lhs),
+            rhs = rhs
+    )
 
 @cython.cfunc
 def p_simple_statement_list(s: PyrexScanner, ctx, first_statement: cython.bint = 0):
