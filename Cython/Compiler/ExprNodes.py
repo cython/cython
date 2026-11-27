@@ -9717,15 +9717,18 @@ class ComprehensionAppendNode(Node):
                 "Invalid type for comprehension node: %s" % self.target.type)
 
         self.expr.generate_evaluation_code(code)
+        call = f"{function}({self.target.result()}, {self.expr.py_result()})"
         if steal_temp:
+            # The helper takes the reference whether or not it fails, so the
+            # temp must not be released again on the error path.
             code.put_giveref(self.expr.result(), self.expr.ctype())
-
-        code.putln(code.error_goto_if(
-            f"{function}({self.target.result()}, {self.expr.py_result()})", self.pos))
-
-        if steal_temp:
+            result = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
+            code.putln(f"{result} = {call};")
             self.expr.generate_post_assignment_code(code)
+            code.putln(code.error_goto_if_neg(result, self.pos))
+            code.funcstate.release_temp(result)
         else:
+            code.putln(code.error_goto_if(call, self.pos))
             self.expr.generate_disposal_code(code)
         self.expr.free_temps(code)
 
@@ -9953,14 +9956,20 @@ class MergedSequenceNode(ExprNode):
                     can_steal_list_item = not is_set and arg.is_temp
                     if can_steal_list_item:
                         helpers.add(("ListCompAppendAndDecref", "Optimize.c"))
-                    code.put_error_if_neg(arg.pos, "%s(%s, %s)" % (
-                        "__Pyx_ListComp_AppendAndDecref" if can_steal_list_item else add_func,
-                        self.result(),
-                        arg.py_result()))
-                    if can_steal_list_item:
+                        # The helper takes the reference whether or not it
+                        # fails, so the temp must not be released again on
+                        # the error path.
                         code.put_giveref(arg.result(), arg.ctype())
+                        result = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
+                        code.putln(f"{result} = __Pyx_ListComp_AppendAndDecref({self.result()}, {arg.py_result()});")
                         arg.generate_post_assignment_code(code)
+                        code.put_error_if_neg(arg.pos, result)
+                        code.funcstate.release_temp(result)
                     else:
+                        code.put_error_if_neg(arg.pos, "%s(%s, %s)" % (
+                            add_func,
+                            self.result(),
+                            arg.py_result()))
                         arg.generate_disposal_code(code)
                     arg.free_temps(code)
                 continue
