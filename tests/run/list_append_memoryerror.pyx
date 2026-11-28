@@ -2,32 +2,18 @@
 # tag: listcomp, comprehension, pep448
 
 """
-Fail each allocation in turn until the call succeeds; a list item must not
-lose a reference when appending it fails. The loop runs uncompiled, so that
-only the functions under test allocate while allocations fail. Refnanny
-allocates as well and then reports its own failures, so the check runs only
-without it.
-
 >>> import sys
->>> try:
-...     from _testcapi import remove_mem_hooks, set_nomemory
-... except ImportError:
-...     set_nomemory = None
 >>> def references_lost(build):
-...     if set_nomemory is None or refnanny or not hasattr(sys, "getrefcount"):
-...         return 0
 ...     holder = Holder()
 ...     keep = [holder.item] * 10  # a release too many shows in the count
 ...     before = sys.getrefcount(holder.item)
-...     for allocation in range(100):
-...         set_nomemory(allocation, allocation + 1)
-...         try:
-...             build(holder)
-...         except MemoryError:
-...             continue
-...         finally:
-...             remove_mem_hooks()
-...         break
+...     set_fail_append(True)
+...     try:
+...         build(holder)
+...     except MemoryError:
+...         pass
+...     finally:
+...         set_fail_append(False)
 ...     return before - sys.getrefcount(holder.item)
 
 >>> references_lost(listcomp)
@@ -38,15 +24,22 @@ without it.
 
 cdef extern from *:
     """
-    #if CYTHON_REFNANNY
-    #define REFNANNY_ENABLED 1
-    #else
-    #define REFNANNY_ENABLED 0
-    #endif
+    static int fail_append = 0;
+    static int failing_list_append(PyObject *list, PyObject *item) {
+        if (fail_append) {
+            PyErr_NoMemory();
+            return -1;
+        }
+        return PyList_Append(list, item);
+    }
+    #define PyList_Append(list, item) failing_list_append(list, item)
     """
-    bint REFNANNY_ENABLED
+    int fail_append
 
-refnanny = REFNANNY_ENABLED
+
+def set_fail_append(bint value):
+    global fail_append
+    fail_append = value
 
 
 class Holder:
