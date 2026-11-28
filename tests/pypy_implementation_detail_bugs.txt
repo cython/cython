@@ -9,6 +9,7 @@ run.extstarargs
 # refcounting-specific tests
 double_dealloc_T796
 run.exceptionrefcount
+run.list_append_memoryerror
 run.capiimpl
 run.refcount_in_meth
 sequential_parallel
